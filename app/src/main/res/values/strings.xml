@@ -1,0 +1,27 @@
+<resources>
+    <string name="app_name">Clover Pay</string>
+    <string name="base_url">https://pockeyt-test.com/api/mobile/pay</string>
+    <string name="error_retrieve_customers_title">Error! Failed to retrieve Customers</string>
+    <string name="error_retrieve_customers_message">Oops, something went wrong! Please refresh Customer List</string>
+    <string name="date_last_purchase_label">Date Last Purchase</string>
+    <string name="default_last_purchase_value">No Recent Purchases</string>
+    <string name="recent_purchases_label">Recent Purchases</string>
+    <string name="last_post_viewed_date_label">Last Pockeyt Post Viewed</string>
+    <string name="default_recent_post_viewed">No Recent Views</string>
+    <string name="last_viewed_post_label">Recent Viewed Post</string>
+    <string name="prompt_email">Email</string>
+    <string name="prompt_password">Password</string>
+    <string name="action_sign_in_short">Sign in</string>
+    <string name="error_invalid_password_length">This password is too short</string>
+    <string name="error_field_required">This field is required</string>
+    <string name="error_invalid_email">This email address is invalid</string>
+    <string name="token_key">TOKEN_KEY</string>
+    <string name="expiry_key">EXPIRY_KEY</string>
+    <string name="no_token_in_storage_value">no_token</string>
+    <string name="preference_file_key">PREFERENCE_FILE_KEY</string>
+    <string name="get_business_data_enter_main">shouldFetchBusinessData</string>
+    <string name="try_again_error_message">Oops! Something went wrong! Please try again</string>
+    <string name="email_not_found">Email not found.</string>
+    <string name="error_invalid_password">Password does not match email.</string>
+    <string name="tender_name">Pockeyt Pay</string>
+</resources>
