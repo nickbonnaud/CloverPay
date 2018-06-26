@@ -2,9 +2,11 @@ package com.pockeyt.cloverpay.ui.activities;
 
 import android.arch.lifecycle.ViewModelProvider;
 import android.arch.lifecycle.ViewModelProviders;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
+import android.support.v4.app.DialogFragment;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentTransaction;
@@ -17,14 +19,19 @@ import com.pockeyt.cloverpay.R;
 import com.pockeyt.cloverpay.handlers.CustomerHandler;
 import com.pockeyt.cloverpay.models.CustomerModel;
 import com.pockeyt.cloverpay.models.CustomerPusherModel;
+import com.pockeyt.cloverpay.models.TokenModel;
 import com.pockeyt.cloverpay.ui.fragments.CustomerGridPagerFragment;
 import com.pockeyt.cloverpay.ui.fragments.CustomerListFragment;
 import com.pockeyt.cloverpay.ui.fragments.CustomerViewPagerFragment;
+import com.pockeyt.cloverpay.ui.fragments.LoginDialogFragment;
+import com.pockeyt.cloverpay.ui.viewModels.BusinessViewModel;
 import com.pockeyt.cloverpay.ui.viewModels.CustomersViewModel;
 import com.pockeyt.cloverpay.ui.viewModels.MainActivityViewModel;
 import com.pockeyt.cloverpay.ui.viewModels.SelectedCustomerViewModel;
+import com.pockeyt.cloverpay.ui.viewModels.TokenViewModel;
 import com.pockeyt.cloverpay.utils.CloverTenderConnecter;
 import com.pockeyt.cloverpay.utils.Interfaces;
+import com.pockeyt.cloverpay.utils.PusherConnector;
 import com.pusher.client.channel.PrivateChannelEventListener;
 
 import org.json.JSONException;
@@ -33,39 +40,68 @@ import org.json.JSONObject;
 import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.subjects.PublishSubject;
 
-public class MainActivity extends AppCompatActivity implements Interfaces.OnListCustomerSelectedInterface {
+public class MainActivity extends AppCompatActivity implements Interfaces.OnListCustomerSelectedInterface, DialogInterface.OnDismissListener {
     public static final String CUSTOMER_LIST_FRAGMENT = "customer_list_fragment";
     public static final String CUSTOMER_VIEWPAGER_FRAGMENT = "customer_viewpager_fragment";
     public static final String CUSTOMER_GRID_PAGER_FRAGMENT = "customer_grid_pager_fragment";
+    public static final String LOGIN_DIALOG_FRAGMENT = "login_dialog_fragment";
     private static final String TAG = MainActivity.class.getSimpleName();
 
     private PublishSubject<CustomerPusherModel> mCustomerPusherSubject;
     private CompositeDisposable mCompositeDisposable = new CompositeDisposable();
     private CloverTenderConnecter mCloverTenderConnecter;
+    private boolean mIsTablet;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
         setContentView(R.layout.activity_main);
-        Intent intent = getIntent();
-        boolean isTablet = getResources().getBoolean(R.bool.is_tablet);
+        mIsTablet = getResources().getBoolean(R.bool.is_tablet);
 
-        MainActivityViewModel mainActivityViewModel = ViewModelProviders.of(this, new MainActivityViewModelFactory(intent.getBooleanExtra(getString(R.string.get_business_data_enter_main), true))).get(MainActivityViewModel.class);
-        mainActivityViewModel.getBusiness().observe(this, business -> {
-            if (!isTablet) {
+        checkShouldShowLogin();
+
+        mCustomerPusherSubject = PublishSubject.create();
+//        mCloverTenderConnecter = new CloverTenderConnecter(this);
+//        mCloverTenderConnecter.init();
+    }
+
+    private void checkShouldShowLogin() {
+        TokenViewModel tokenViewModel = ViewModelProviders.of(this).get(TokenViewModel.class);
+        TokenModel token = tokenViewModel.getToken().getValue();
+        if (token.getValue().equals(getString(R.string.no_token_in_storage_value)) || token.getExpiry() < (System.currentTimeMillis() / 1000L)) {
+            showLoginDialog();
+        } else {
+            getBusiness();
+        }
+    }
+
+    private void showLoginDialog() {
+        LoginDialogFragment savedFragment = (LoginDialogFragment) getSupportFragmentManager().findFragmentByTag(LOGIN_DIALOG_FRAGMENT);
+        FragmentManager fragmentManager = getSupportFragmentManager();
+        if (savedFragment == null) {
+            LoginDialogFragment loginDialogFragment = LoginDialogFragment.newInstance();
+            loginDialogFragment.show(fragmentManager, LOGIN_DIALOG_FRAGMENT);
+        }
+    }
+
+
+    @Override
+    public void onDismiss(DialogInterface dialog) {
+        getBusiness();
+    }
+
+    private void getBusiness() {
+        BusinessViewModel businessViewModel = ViewModelProviders.of(this).get(BusinessViewModel.class);
+        businessViewModel.getBusiness().observe(this, business -> {
+            TokenViewModel tokenViewModel = ViewModelProviders.of(this).get(TokenViewModel.class);
+            tokenViewModel.setToken(business.getToken(), true);
+            if (!mIsTablet) {
                 setCustomerListFragment();
             } else {
                 setCustomerGridPagerFragment();
             }
             connectToPusher();
         });
-
-        mainActivityViewModel.getError().observe(this, this::showError);
-
-        mCustomerPusherSubject = PublishSubject.create();
-        mCloverTenderConnecter = new CloverTenderConnecter(this);
-        mCloverTenderConnecter.init();
     }
 
     private void setCustomerGridPagerFragment() {
@@ -240,45 +276,27 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
 
 
     private void connectToPusher() {
-        PockeytPay pockeytPay = ((PockeytPay) this.getApplication());
-        if (!pockeytPay.getPusherConnected()) {
-            pockeytPay.connectToPusher();
+        PusherConnector pusherConnector = new PusherConnector(this);
+        if (!pusherConnector.getIsPusherConnected()) {
+            pusherConnector.connectToPusher();
             bindToPusher();
         }
     }
 
     private void bindToPusher() {
-        Log.d(TAG, "Inside bind to pusher");
-
-        PockeytPay pockeytPay = ((PockeytPay) this.getApplication());
-        if (pockeytPay.getPusherConnected()) {
-            Log.d(TAG, "is connected");
-            pockeytPay.getPusherChannel().bind(pockeytPay.getPusherEvent(), privateChannelEventListener);
+        PusherConnector pusherConnector = new PusherConnector(this);
+        if (pusherConnector.getIsPusherConnected()) {
+            pusherConnector.getPusherChannel().bind(pusherConnector.getPusherEvent(), privateChannelEventListener);
         }
     }
 
     private void unbindToPusher() {
-        Log.d(TAG, "Inside unbind to pusher");
-        PockeytPay pockeytPay = ((PockeytPay) this.getApplication());
-        if (pockeytPay.getPusherConnected()) {
-            pockeytPay.getPusherChannel().unbind(pockeytPay.getPusherEvent(), privateChannelEventListener);
+        PusherConnector pusherConnector = new PusherConnector(this);
+        if (pusherConnector.getIsPusherConnected()) {
+            pusherConnector.getPusherChannel().unbind(pusherConnector.getPusherEvent(), privateChannelEventListener);
         }
     }
 
-
-    private class MainActivityViewModelFactory implements ViewModelProvider.Factory {
-        private boolean shouldFetchBusiness;
-
-        private MainActivityViewModelFactory(boolean shouldFetchBusiness) {
-            this.shouldFetchBusiness = shouldFetchBusiness;
-        }
-
-        @NonNull
-        @Override
-        public MainActivityViewModel create(Class modelClass) {
-            return new MainActivityViewModel(shouldFetchBusiness);
-        }
-    }
 
     @Override
     protected void onResume() {
@@ -296,7 +314,7 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
     protected void onDestroy() {
         super.onDestroy();
         mCompositeDisposable.dispose();
-        mCloverTenderConnecter.destroy();
+//        mCloverTenderConnecter.destroy();
         unbindToPusher();
     }
 

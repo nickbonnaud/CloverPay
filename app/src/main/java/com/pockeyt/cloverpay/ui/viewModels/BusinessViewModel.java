@@ -3,14 +3,16 @@ package com.pockeyt.cloverpay.ui.viewModels;
 import android.arch.lifecycle.LiveData;
 import android.arch.lifecycle.MutableLiveData;
 import android.arch.lifecycle.ViewModel;
+import android.arch.lifecycle.ViewModelProviders;
+import android.content.Context;
+import android.util.Log;
 
-import com.pockeyt.cloverpay.handlers.BusinessHandler;
+import com.pockeyt.cloverpay.PockeytPay;
 import com.pockeyt.cloverpay.http.APIClient;
 import com.pockeyt.cloverpay.http.APIInterface;
 import com.pockeyt.cloverpay.http.retrofitModels.Business;
 import com.pockeyt.cloverpay.models.BusinessModel;
 import com.pockeyt.cloverpay.models.TokenModel;
-import com.pockeyt.cloverpay.utils.TokenHandler;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -24,39 +26,28 @@ import io.reactivex.disposables.Disposable;
 import io.reactivex.schedulers.Schedulers;
 import retrofit2.Response;
 
-public class MainActivityViewModel extends ViewModel {
+public class BusinessViewModel extends ViewModel {
+    private static final String TAG = BusinessViewModel.class.getSimpleName();
     private MutableLiveData<BusinessModel> business;
-    private MutableLiveData<String> error;
-    private boolean mShouldFetchBusiness;
     private CompositeDisposable mCompositeDisposable = new CompositeDisposable();
-
-
-    public MainActivityViewModel(boolean shouldFetch) {
-        mShouldFetchBusiness = shouldFetch;
-    }
 
     public LiveData<BusinessModel> getBusiness() {
         if (business == null) {
             business = new MutableLiveData<BusinessModel>();
-            if (mShouldFetchBusiness) {
-                mShouldFetchBusiness = false;
-                loadBusiness();
-            } else {
-                BusinessModel savedBusiness = BusinessHandler.getBusiness();
-                setBusiness(savedBusiness);
-            }
+            fetchBusiness();
         }
         return business;
     }
 
-    public LiveData<String> getError() {
-        if (error == null) {
-            error = new MutableLiveData<String>();
+
+    public void setBusiness(BusinessModel businessModel) {
+        if (this.business == null) {
+            this.business = new MutableLiveData<BusinessModel>();
         }
-        return error;
+        this.business.setValue(businessModel);
     }
 
-    private void loadBusiness() {
+    private void fetchBusiness() {
         APIInterface apiInterface = APIClient.getClient().create(APIInterface.class);
         Observable<Response<Business>> businessObservable = apiInterface.doGetBusiness();
         Disposable disposable = businessObservable.subscribeOn(Schedulers.io())
@@ -72,7 +63,7 @@ public class MainActivityViewModel extends ViewModel {
         } else {
             try {
                 JSONObject errorBody = new JSONObject(businessResponse.errorBody().string());
-                setError(errorBody.getString("error"));
+                Log.e(TAG, errorBody.toString());
             } catch (JSONException e) {
                 e.printStackTrace();
             } catch (IOException e) {
@@ -81,37 +72,19 @@ public class MainActivityViewModel extends ViewModel {
         }
     }
 
-    private void handleError(Throwable throwable) {
-        setError(throwable.getMessage());
-    }
-
-
     private BusinessModel setBusinessModel(Business business) {
-        TokenModel token = setAndSaveToken(business);
-        BusinessModel businessModel = new BusinessModel(
+        TokenModel token = new TokenModel(business.getData().getToken().getValue(), business.getData().getToken().getExpiry());
+        return new BusinessModel(
                 business.getData().getId(),
                 business.getData().getSlug(),
                 business.getData().getBusinessName(),
                 token,
                 business.getData().getLogo()
         );
-        BusinessHandler.setBusiness(businessModel);
-        return businessModel;
     }
 
-    private TokenModel setAndSaveToken(Business business) {
-        TokenModel token = new TokenModel(business.getData().getToken().getValue(), business.getData().getToken().getExpiry());
-        TokenHandler tokenHandler = new TokenHandler();
-//        tokenHandler.saveToken(token);
-        return token;
-    }
-
-    private void setError(String error) {
-        this.error.setValue(error);
-    }
-
-    private void setBusiness(BusinessModel business) {
-        this.business.setValue(business);
+    private void handleError(Throwable throwable) {
+        throwable.printStackTrace();
     }
 
     @Override

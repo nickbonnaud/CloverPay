@@ -45,7 +45,7 @@ public class CustomersViewModel extends ViewModel {
     }
 
     private void handleError(Throwable throwable) {
-        Log.e(TAG, throwable.getMessage());
+        Log.e(TAG, "ERROR: " + throwable.getMessage());
     }
 
     private void handleResult(Response<CustomerList> customerListResponse) throws IOException {

@@ -1,6 +1,12 @@
 package com.pockeyt.cloverpay.http;
 
+import android.arch.lifecycle.ViewModelProviders;
+import android.content.Context;
+
+import com.pockeyt.cloverpay.PockeytPay;
 import com.pockeyt.cloverpay.models.TokenModel;
+import com.pockeyt.cloverpay.ui.activities.MainActivity;
+import com.pockeyt.cloverpay.ui.viewModels.TokenViewModel;
 import com.pockeyt.cloverpay.utils.TokenHandler;
 
 import java.io.IOException;

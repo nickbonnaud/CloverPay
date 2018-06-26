@@ -233,7 +233,7 @@ public class LoginActivity extends AppCompatActivity {
         private TokenModel setAndSaveTokenModel(Business business) {
             TokenModel token = new TokenModel(business.getData().getToken().getValue(), business.getData().getToken().getExpiry());
             TokenHandler tokenHandler = new TokenHandler();
-            tokenHandler.saveToken(token);
+//            tokenHandler.saveToken(token);
             return token;
         }
 
