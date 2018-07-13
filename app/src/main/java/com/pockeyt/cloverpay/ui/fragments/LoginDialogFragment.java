@@ -226,7 +226,8 @@ public class LoginDialogFragment extends DialogFragment {
                     business.getData().getSlug(),
                     business.getData().getBusinessName(),
                     token,
-                    business.getData().getLogo()
+                    business.getData().getLogo(),
+                    business.getData().getConnectedPos()
             );
             BusinessViewModel businessViewModel = ViewModelProviders.of(getActivity()).get(BusinessViewModel.class);
             businessViewModel.setBusiness(businessModel);

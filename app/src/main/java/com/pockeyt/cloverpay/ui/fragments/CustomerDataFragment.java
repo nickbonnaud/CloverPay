@@ -22,7 +22,6 @@ import android.widget.TableRow;
 import android.widget.TextView;
 
 import com.pockeyt.cloverpay.R;
-import com.pockeyt.cloverpay.handlers.BusinessHandler;
 import com.pockeyt.cloverpay.models.BusinessModel;
 import com.pockeyt.cloverpay.models.CustomerModel;
 import com.pockeyt.cloverpay.models.CustomerPusherModel;
@@ -30,6 +29,7 @@ import com.pockeyt.cloverpay.models.PurchasedItemModel;
 import com.pockeyt.cloverpay.models.RecentPostInteractionModel;
 import com.pockeyt.cloverpay.models.RecentTransactionModel;
 import com.pockeyt.cloverpay.ui.activities.MainActivity;
+import com.pockeyt.cloverpay.ui.viewModels.BusinessViewModel;
 import com.pockeyt.cloverpay.ui.viewModels.SelectedCustomerViewModel;
 import com.pockeyt.cloverpay.utils.DateHelpers;
 import com.pockeyt.cloverpay.utils.DisplayHelpers;
@@ -53,6 +53,7 @@ public class CustomerDataFragment extends Fragment {
     CustomerModel mCustomer;
     BusinessModel mBusiness;
     SelectedCustomerViewModel mSelectedCustomerViewModel;
+    BusinessViewModel mBusinessViewModel;
     CompositeDisposable mCompositeDisposable = new CompositeDisposable();
 
     @Nullable
@@ -61,10 +62,9 @@ public class CustomerDataFragment extends Fragment {
         View view = inflater.inflate(R.layout.fragment_customer_data, container, false);
         getSelectedCustomerViewModel().getCustomer().observe(this, customer -> {
             mCustomer = customer;
-            mBusiness = BusinessHandler.getBusiness();
-            setFragmentUI(view);
+            mBusiness = getBusinessViewModel().getBusiness().getValue();
+             setFragmentUI(view);
         });
-
 
         setUpdateCustomerWatcher();
         if (mCustomer == null) {
@@ -78,6 +78,13 @@ public class CustomerDataFragment extends Fragment {
             mSelectedCustomerViewModel = ViewModelProviders.of(getActivity()).get(SelectedCustomerViewModel.class);
         }
         return mSelectedCustomerViewModel;
+    }
+
+    private BusinessViewModel getBusinessViewModel() {
+        if (mBusinessViewModel == null) {
+            mBusinessViewModel = ViewModelProviders.of(getActivity()).get(BusinessViewModel.class);
+        }
+        return mBusinessViewModel;
     }
 
     private void setFragUINoCustomer(View view) {

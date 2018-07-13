@@ -3,11 +3,8 @@ package com.pockeyt.cloverpay.ui.viewModels;
 import android.arch.lifecycle.LiveData;
 import android.arch.lifecycle.MutableLiveData;
 import android.arch.lifecycle.ViewModel;
-import android.arch.lifecycle.ViewModelProviders;
-import android.content.Context;
 import android.util.Log;
 
-import com.pockeyt.cloverpay.PockeytPay;
 import com.pockeyt.cloverpay.http.APIClient;
 import com.pockeyt.cloverpay.http.APIInterface;
 import com.pockeyt.cloverpay.http.retrofitModels.Business;
@@ -79,7 +76,8 @@ public class BusinessViewModel extends ViewModel {
                 business.getData().getSlug(),
                 business.getData().getBusinessName(),
                 token,
-                business.getData().getLogo()
+                business.getData().getLogo(),
+                business.getData().getConnectedPos()
         );
     }
 

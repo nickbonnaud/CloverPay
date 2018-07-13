@@ -7,13 +7,15 @@ public class BusinessModel {
     private String businessName;
     private TokenModel token;
     private String logoUrl;
+    private String connectedPos;
 
-    public BusinessModel(int id, String slug, String businessName, TokenModel token, String logoUrl) {
+    public BusinessModel(int id, String slug, String businessName, TokenModel token, String logoUrl, String connectedPos) {
         this.id = id;
         this.slug = slug;
         this.businessName = businessName;
         this.token = token;
         this.logoUrl = logoUrl;
+        this.connectedPos = connectedPos;
     }
 
     public int getId() {
@@ -54,5 +56,13 @@ public class BusinessModel {
 
     public void setLogoUrl(String logoUrl) {
         this.logoUrl = logoUrl;
+    }
+
+    public String getConnectedPos() {
+        return connectedPos;
+    }
+
+    public void setConnectedPos(String connectedPos) {
+        this.connectedPos = connectedPos;
     }
 }

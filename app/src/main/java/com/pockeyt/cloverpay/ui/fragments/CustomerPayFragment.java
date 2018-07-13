@@ -2,6 +2,7 @@ package com.pockeyt.cloverpay.ui.fragments;
 
 import android.app.Activity;
 import android.arch.lifecycle.ViewModelProviders;
+import android.content.Intent;
 import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.os.Handler;
@@ -10,6 +11,8 @@ import android.support.annotation.Nullable;
 import android.support.constraint.ConstraintLayout;
 import android.support.constraint.ConstraintSet;
 import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentManager;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -18,12 +21,17 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.clover.sdk.v1.Intents;
 import com.pockeyt.cloverpay.R;
 import com.pockeyt.cloverpay.http.APIClient;
 import com.pockeyt.cloverpay.http.APIInterface;
+import com.pockeyt.cloverpay.models.CloverTransactionModel;
 import com.pockeyt.cloverpay.models.CustomerModel;
 import com.pockeyt.cloverpay.models.CustomerPusherModel;
+import com.pockeyt.cloverpay.models.PockeytTransactionModel;
 import com.pockeyt.cloverpay.ui.activities.MainActivity;
+import com.pockeyt.cloverpay.ui.viewModels.CloverTransactionViewModel;
+import com.pockeyt.cloverpay.ui.viewModels.PockeytTransactionViewModel;
 import com.pockeyt.cloverpay.ui.viewModels.SelectedCustomerViewModel;
 import com.pockeyt.cloverpay.utils.DisplayHelpers;
 import com.pockeyt.cloverpay.utils.ImageLoader;
@@ -43,13 +51,18 @@ import retrofit2.Response;
 
 public class CustomerPayFragment extends Fragment {
     private static final String TAG = CustomerPayFragment.class.getSimpleName();
+    public static final String ALERT_ERROR_FRAGMENT = "alert_error_fragment";
+    public static final int ALERT_ERROR_CODE = 31;
     View mView;
     CustomerModel mCustomer;
     CircularProgressButton mDealButton;
-    TextView mDealText;
     CircularProgressButton mLoyaltyButton;
+    Button mPayButton;
+    TextView mDealText;
     TextView mLoyaltyText;
     SelectedCustomerViewModel mSelectedCustomerViewModel;
+    CloverTransactionModel mCloverTransactionModel;
+    PockeytTransactionModel mPockeytTransactionModel;
     CompositeDisposable mCompositeDisposable = new CompositeDisposable();
 
     @Nullable
@@ -107,10 +120,10 @@ public class CustomerPayFragment extends Fragment {
         String fullName = mCustomer.getFirstName() + " " + mCustomer.getLastName();
         customerPayName.setText(fullName);
 
-        Button payButton = mView.findViewById(R.id.payButton);
+        mPayButton = mView.findViewById(R.id.payButton);
         String buttonText = "Charge " + mCustomer.getFirstName();
-        payButton.setText(buttonText);
-        payButton.setEnabled(true);
+        mPayButton.setText(buttonText);
+        mPayButton.setEnabled(true);
 
         ImageView customerPayImage = mView.findViewById(R.id.customerPayImage);
         ViewGroup.LayoutParams params = customerPayImage.getLayoutParams();
@@ -123,6 +136,7 @@ public class CustomerPayFragment extends Fragment {
         updateButtonLayout();
         setLoyaltyOnClickListener();
         setDealOnClickListener();
+        setPayOnClickListener();
     }
 
     private void setFragUINoCustomer() {
@@ -132,15 +146,9 @@ public class CustomerPayFragment extends Fragment {
         mDealText = mView.findViewById(R.id.dealText);
         TextView customerPayName = mView.findViewById(R.id.customerPayName);
         customerPayName.setText("No Customer Selected");
-        Button payButton = mView.findViewById(R.id.payButton);
-        payButton.setText("Charge Customer");
-        payButton.setEnabled(false);
-
-        ImageView customerPayImage = mView.findViewById(R.id.customerPayImage);
-        customerPayImage.setImageResource(R.drawable.ic_account_circle_black_24dp);
-        ViewGroup.LayoutParams params = customerPayImage.getLayoutParams();
-        params.width = DisplayHelpers.dipToPixels(getActivity(), 160);
-        customerPayImage.setLayoutParams(params);
+        mPayButton = mView.findViewById(R.id.payButton);
+        mPayButton.setText("Charge Customer");
+        mPayButton.setEnabled(false);
 
         mLoyaltyButton.setVisibility(View.GONE);
         mLoyaltyText.setVisibility(View.GONE);
@@ -307,6 +315,80 @@ public class CustomerPayFragment extends Fragment {
         mLoyaltyText.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_loyalty_black_24dp, 0, 0, 0);
     }
 
+    private void setPayOnClickListener() {
+        mPayButton.setOnClickListener(v -> {
+            mPayButton.setEnabled(false);
+            setViewModels();
+            if (checkCustomerOwnsTransaction()) {
+                Log.d(TAG, "Customer owns transaction");
+                sendPaymentRequestToCustomer();
+            } else {
+                Log.d(TAG, "customer does not own transaction");
+                showAlertErrorDialog();
+            }
+        });
+    }
+
+    private void showAlertErrorDialog() {
+        Bundle bundle = new Bundle();
+        bundle.putString("title", "Warning! Is this the correct customer?");
+        bundle.putString("message", "Please ensure you have selected the correct customer. Our records indicate " + mCustomer.getFirstName() + " does not own this transaction.");
+
+        AlertErrorFragment savedFragment = (AlertErrorFragment) getActivity().getSupportFragmentManager().findFragmentByTag(ALERT_ERROR_FRAGMENT);
+        if (savedFragment == null) {
+            AlertErrorFragment alertErrorFragment = AlertErrorFragment.newInstance();
+            alertErrorFragment.setArguments(bundle);
+            alertErrorFragment.setTargetFragment(this, ALERT_ERROR_CODE);
+            alertErrorFragment.show(getFragmentManager(), ALERT_ERROR_FRAGMENT);
+        }
+    }
+
+    private void setViewModels() {
+        CloverTransactionViewModel cloverTransactionViewModel = ViewModelProviders.of(getActivity()).get(CloverTransactionViewModel.class);
+        mCloverTransactionModel = cloverTransactionViewModel.getCloverTransaction().getValue();
+        PockeytTransactionViewModel pockeytTransactionViewModel = ViewModelProviders.of(getActivity()).get(PockeytTransactionViewModel.class);
+        mPockeytTransactionModel = pockeytTransactionViewModel.getpockeytTransaction(mCloverTransactionModel.getOrderId()).getValue();
+    }
+
+    private void sendPaymentRequestToCustomer() {
+        Log.d(TAG, "Send pay request to customer");
+        APIInterface apiInterface = APIClient.getClient().create(APIInterface.class);
+        int pockeytTransactionId =  mPockeytTransactionModel == null ? null : mPockeytTransactionModel.getId();
+        Observable<Response<JSONObject>> sendPayRequestObservable = apiInterface.doRequestPostTransaction("clover", mCloverTransactionModel.getOrderId(), mCustomer.getId(), mCloverTransactionModel.getAmount(), mCloverTransactionModel.getTaxAmount(), pockeytTransactionId);
+        Disposable disposable = sendPayRequestObservable.subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(this::handlePayResult, this::handlePayError);
+        mCompositeDisposable.add(disposable);
+    }
+
+    private void handlePayResult(Response response) {
+        if (response.isSuccessful()) {
+            Intent intent = new Intent(Intents.ACTION_START_REGISTER);
+            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            getActivity().startActivity(intent);
+        } else {
+            try {
+                JSONObject errorObject = new JSONObject(response.errorBody().string());
+                String errorMsg = errorObject.getString("error");
+                showError(errorMsg);
+            } catch (Exception e) {
+                Toast.makeText(getActivity(), e.getMessage(), Toast.LENGTH_LONG).show();
+            }
+        }
+    }
+
+    private void handlePayError(Throwable throwable) {
+        mPayButton.setEnabled(true);
+        Toast.makeText(getActivity(), throwable.getMessage(), Toast.LENGTH_LONG).show();
+    }
+
+    private boolean checkCustomerOwnsTransaction() {
+        if (mPockeytTransactionModel == null) {
+            return true;
+        }
+        return mPockeytTransactionModel.getCustomerId() == mSelectedCustomerViewModel.getCustomer().getValue().getId();
+    }
+
     private void showError(String errorMsg) {
         String message;
         switch (errorMsg) {
@@ -327,6 +409,9 @@ public class CustomerPayFragment extends Fragment {
                 break;
             case "loyalty_card_not_owned_by_business":
                 message = "Permission denied. Loyalty reward is redeemable at a different business.";
+                break;
+            case "unable_to_charge_customer":
+                message = "Oops! Something happened. Please try again.";
                 break;
             default:
                 message = getString(R.string.try_again_error_message);
@@ -402,5 +487,20 @@ public class CustomerPayFragment extends Fragment {
     public void onDestroy() {
         super.onDestroy();
         mCompositeDisposable.dispose();
+    }
+
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode == ALERT_ERROR_CODE) {
+            if (resultCode == Activity.RESULT_OK) {
+                if (data.getExtras().containsKey("charge_customer")) {
+                    if (data.getExtras().getBoolean("charge_customer")) {
+                        sendPaymentRequestToCustomer();
+                    }
+                }
+            }
+        }
     }
 }

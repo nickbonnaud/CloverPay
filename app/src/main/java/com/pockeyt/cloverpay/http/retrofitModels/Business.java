@@ -34,6 +34,9 @@ public class Business {
         @SerializedName("token")
         @Expose
         private Token token;
+        @SerializedName("connected_pos")
+        @Expose
+        private String connectedPos;
 
         public Integer getId() {
             return id;
@@ -65,6 +68,14 @@ public class Business {
 
         public void setLogo(String logo) {
             this.logo = logo;
+        }
+
+        public String getConnectedPos() {
+            return connectedPos;
+        }
+
+        public void setConnectedPos(String connectedPos) {
+            this.connectedPos = connectedPos;
         }
 
         public Token getToken() {

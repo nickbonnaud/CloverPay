@@ -1,12 +1,10 @@
 package com.pockeyt.cloverpay.ui.activities;
 
-import android.arch.lifecycle.ViewModelProvider;
 import android.arch.lifecycle.ViewModelProviders;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.nfc.Tag;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
-import android.support.v4.app.DialogFragment;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentTransaction;
@@ -14,19 +12,22 @@ import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.widget.Toast;
 
-import com.pockeyt.cloverpay.PockeytPay;
+import com.clover.sdk.v1.customer.Customer;
 import com.pockeyt.cloverpay.R;
 import com.pockeyt.cloverpay.handlers.CustomerHandler;
+import com.pockeyt.cloverpay.models.CloverTransactionModel;
 import com.pockeyt.cloverpay.models.CustomerModel;
 import com.pockeyt.cloverpay.models.CustomerPusherModel;
+import com.pockeyt.cloverpay.models.PockeytTransactionModel;
 import com.pockeyt.cloverpay.models.TokenModel;
 import com.pockeyt.cloverpay.ui.fragments.CustomerGridPagerFragment;
 import com.pockeyt.cloverpay.ui.fragments.CustomerListFragment;
 import com.pockeyt.cloverpay.ui.fragments.CustomerViewPagerFragment;
 import com.pockeyt.cloverpay.ui.fragments.LoginDialogFragment;
 import com.pockeyt.cloverpay.ui.viewModels.BusinessViewModel;
+import com.pockeyt.cloverpay.ui.viewModels.CloverTransactionViewModel;
 import com.pockeyt.cloverpay.ui.viewModels.CustomersViewModel;
-import com.pockeyt.cloverpay.ui.viewModels.MainActivityViewModel;
+import com.pockeyt.cloverpay.ui.viewModels.PockeytTransactionViewModel;
 import com.pockeyt.cloverpay.ui.viewModels.SelectedCustomerViewModel;
 import com.pockeyt.cloverpay.ui.viewModels.TokenViewModel;
 import com.pockeyt.cloverpay.utils.CloverTenderConnecter;
@@ -37,7 +38,9 @@ import com.pusher.client.channel.PrivateChannelEventListener;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import io.reactivex.Observer;
 import io.reactivex.disposables.CompositeDisposable;
+import io.reactivex.disposables.Disposable;
 import io.reactivex.subjects.PublishSubject;
 
 public class MainActivity extends AppCompatActivity implements Interfaces.OnListCustomerSelectedInterface, DialogInterface.OnDismissListener {
@@ -56,13 +59,42 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        mCloverTenderConnecter = new CloverTenderConnecter(this);
+        mCloverTenderConnecter.init();
+        Intent cloverTenderIntent = getIntent();
+        if (cloverTenderIntent != null && cloverTenderIntent.getAction().equals("clover.intent.action.MERCHANT_TENDER")) {
+            setSelectedCustomerFromIntent(cloverTenderIntent);
+        }
+
         mIsTablet = getResources().getBoolean(R.bool.is_tablet);
-
         checkShouldShowLogin();
-
         mCustomerPusherSubject = PublishSubject.create();
-//        mCloverTenderConnecter = new CloverTenderConnecter(this);
-//        mCloverTenderConnecter.init();
+
+        setResult(RESULT_CANCELED);
+    }
+
+    private void setSelectedCustomerFromIntent(Intent cloverTenderIntent) {
+        CloverTransactionModel cloverTransaction = mCloverTenderConnecter.setCloverTransaction(cloverTenderIntent);
+        CloverTransactionViewModel cloverTransactionViewModel = ViewModelProviders.of(this).get(CloverTransactionViewModel.class);
+        cloverTransactionViewModel.setCloverTransaction(cloverTransaction);
+
+        CustomersViewModel customersViewModel = ViewModelProviders.of(this).get(CustomersViewModel.class);
+        customersViewModel.getCustomers().observe(this, customers -> {
+            PockeytTransactionViewModel pockeytTransactionViewModel = ViewModelProviders.of(this).get(PockeytTransactionViewModel.class);
+            pockeytTransactionViewModel.getpockeytTransaction(cloverTransaction.getOrderId()).observe(this, pockeytTransaction -> {
+                for (int i = 0; i < customers.length; i++) {
+                    if (customers[i].getId() == pockeytTransaction.getCustomerId()) {
+                        if (pockeytTransaction.getTax() != cloverTransaction.getTaxAmount() || pockeytTransaction.getTotal() != cloverTransaction.getAmount()) {
+                            pockeytTransactionViewModel.fetchPockeytTransaction(cloverTransaction.getOrderId());
+                        }
+                        SelectedCustomerViewModel selectedCustomerViewModel = ViewModelProviders.of(this).get(SelectedCustomerViewModel.class);
+                        selectedCustomerViewModel.setCustomer(customers[i]);
+                    }
+                }
+            });
+        });
+
     }
 
     private void checkShouldShowLogin() {
@@ -95,6 +127,11 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
         businessViewModel.getBusiness().observe(this, business -> {
             TokenViewModel tokenViewModel = ViewModelProviders.of(this).get(TokenViewModel.class);
             tokenViewModel.setToken(business.getToken(), true);
+
+            if (business.getConnectedPos() == null || !business.getConnectedPos().equals("clover")) {
+                mCloverTenderConnecter.getAuthToken();
+            }
+
             if (!mIsTablet) {
                 setCustomerListFragment();
             } else {
@@ -157,33 +194,6 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
         fragmentTransaction.commit();
     }
 
-    private void showError(String errorMessage) {
-        String formattedMessage;
-        switch (errorMessage) {
-            case "token_expired":
-                formattedMessage = "Your login credentials have expired. Please login.";
-                break;
-            case "token_invalid":
-                formattedMessage = "Your login credentials have become invalid. Please login.";
-                break;
-            case "token_absent":
-                formattedMessage = "Your login credentials have been deleted. Please login.";
-                break;
-            case "user_not_found":
-                formattedMessage = "Oops! Something went wrong. Please re-verify your login.";
-                break;
-            default:
-                formattedMessage = "Oops! Something went wrong. Please re-verify your login.";
-        }
-        Toast.makeText(this, formattedMessage, Toast.LENGTH_SHORT).show();
-        goToLogin();
-    }
-
-    private void goToLogin() {
-        Intent intent = new Intent(this, LoginActivity.class);
-        startActivity(intent);
-        finish();
-    }
 
     private PrivateChannelEventListener privateChannelEventListener = new PrivateChannelEventListener() {
         @Override
@@ -314,7 +324,7 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
     protected void onDestroy() {
         super.onDestroy();
         mCompositeDisposable.dispose();
-//        mCloverTenderConnecter.destroy();
+        mCloverTenderConnecter.destroy();
         unbindToPusher();
     }
 
