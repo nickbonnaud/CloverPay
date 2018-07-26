@@ -202,18 +202,15 @@ public class CustomerDataFragment extends Fragment {
             String totalAmountValue = setValueToCurrency((double) recentTransaction.getTotal());
             totalAmount.setText(totalAmountValue);
 
-            try {
-                setPurchasedItemsRows(recentTransaction, view);
-            } catch (JSONException e) {
-                e.printStackTrace();
-            }
+            setPurchasedItemsRows(recentTransaction, view);
+
         } else {
             CardView recentTransactionCardView = view.findViewById(R.id.recentTransactionCard);
             recentTransactionCardView.setVisibility(View.GONE);
         }
     }
 
-    private void setPurchasedItemsRows(RecentTransactionModel recentTransaction, View view) throws JSONException {
+    private void setPurchasedItemsRows(RecentTransactionModel recentTransaction, View view) {
         TableLayout tableLayout = view.findViewById(R.id.receiptLayout);
         PurchasedItemModel[] purchasedItems = recentTransaction.getPurchasedItems();
 

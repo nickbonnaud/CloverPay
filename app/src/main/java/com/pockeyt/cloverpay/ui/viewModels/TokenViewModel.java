@@ -5,7 +5,6 @@ import android.arch.lifecycle.MutableLiveData;
 import android.arch.lifecycle.ViewModel;
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.util.Log;
 
 import com.pockeyt.cloverpay.PockeytPay;
 import com.pockeyt.cloverpay.R;
@@ -28,7 +27,7 @@ public class TokenViewModel extends ViewModel {
 
     private void retrieveTokenFromStorage() {
         Context context = PockeytPay.getAppContext();
-        SharedPreferences sharedPref = context.getSharedPreferences(context.getString(R.string.preference_file_key), context.MODE_PRIVATE);
+        SharedPreferences sharedPref = context.getSharedPreferences(context.getString(R.string.preference_file_key), Context.MODE_PRIVATE);
         String tokenValue = sharedPref.getString(context.getString(R.string.token_key), context.getString(R.string.no_token_in_storage_value));
         int tokenExpiry = sharedPref.getInt(context.getString(R.string.expiry_key), 0);
 
@@ -49,7 +48,7 @@ public class TokenViewModel extends ViewModel {
 
     private void saveTokenToStorage(TokenModel tokenModel) {
         Context context = PockeytPay.getAppContext();
-        SharedPreferences sharedPref = context.getSharedPreferences(context.getString(R.string.preference_file_key), context.MODE_PRIVATE);
+        SharedPreferences sharedPref = context.getSharedPreferences(context.getString(R.string.preference_file_key), Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = sharedPref.edit();
 
         editor.putString(context.getString(R.string.token_key), tokenModel.getValue());

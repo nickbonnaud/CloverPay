@@ -9,8 +9,6 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.support.v4.app.DialogFragment;
 
-import com.pockeyt.cloverpay.R;
-
 public class AlertErrorFragment extends DialogFragment {
 
     public AlertErrorFragment(){}

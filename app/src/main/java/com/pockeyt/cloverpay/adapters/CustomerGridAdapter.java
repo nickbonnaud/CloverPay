@@ -34,7 +34,7 @@ public class CustomerGridAdapter extends RecyclerView.Adapter {
     @Override
     public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         mContext = parent.getContext();
-        mListener = (Interfaces.OnGridCustomerSelectedInterface) mCustomerGridPagerFragment;
+        mListener = mCustomerGridPagerFragment;
         View view = LayoutInflater.from(mContext).inflate(R.layout.customer_grid_item, parent, false);
         return new CustomerGridViewHolder(view);
     }

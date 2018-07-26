@@ -32,8 +32,6 @@ import com.pockeyt.cloverpay.ui.viewModels.TokenViewModel;
 
 import org.json.JSONObject;
 
-import java.io.IOException;
-
 import io.reactivex.Observable;
 import io.reactivex.android.schedulers.AndroidSchedulers;
 import io.reactivex.disposables.CompositeDisposable;
@@ -188,7 +186,7 @@ public class LoginDialogFragment extends DialogFragment {
             mCompositeDisposable.add(disposable);
         }
 
-        private void handleResult(Response<Business> businessResponse) throws IOException {
+        private void handleResult(Response<Business> businessResponse) {
             if (businessResponse.isSuccessful()) {
                 Business business = businessResponse.body();
                 setBusiness(business);

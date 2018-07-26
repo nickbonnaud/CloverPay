@@ -4,18 +4,14 @@ import android.accounts.Account;
 import android.arch.lifecycle.ViewModelProviders;
 import android.content.Context;
 import android.content.Intent;
-import android.os.IInterface;
 import android.util.Log;
 import android.widget.Toast;
 
 import com.clover.sdk.util.CloverAccount;
 import com.clover.sdk.util.CloverAuth;
 import com.clover.sdk.v1.Intents;
-import com.clover.sdk.v1.ServiceConnector;
 import com.clover.sdk.v1.tender.Tender;
 import com.clover.sdk.v1.tender.TenderConnector;
-import com.clover.sdk.v3.inventory.Category;
-import com.clover.sdk.v3.inventory.InventoryConnector;
 import com.pockeyt.cloverpay.R;
 import com.pockeyt.cloverpay.http.APIClient;
 import com.pockeyt.cloverpay.http.APIInterface;

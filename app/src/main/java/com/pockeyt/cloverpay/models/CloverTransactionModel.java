@@ -1,7 +1,5 @@
 package com.pockeyt.cloverpay.models;
 
-import com.clover.sdk.v3.order.Order;
-
 public class CloverTransactionModel {
     private long amount;
     private long taxAmount;

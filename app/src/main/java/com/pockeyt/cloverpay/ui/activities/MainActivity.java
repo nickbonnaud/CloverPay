@@ -3,22 +3,18 @@ package com.pockeyt.cloverpay.ui.activities;
 import android.arch.lifecycle.ViewModelProviders;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.nfc.Tag;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentTransaction;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
-import android.widget.Toast;
 
-import com.clover.sdk.v1.customer.Customer;
 import com.pockeyt.cloverpay.R;
-import com.pockeyt.cloverpay.handlers.CustomerHandler;
+import com.pockeyt.cloverpay.models.BusinessModel;
 import com.pockeyt.cloverpay.models.CloverTransactionModel;
 import com.pockeyt.cloverpay.models.CustomerModel;
 import com.pockeyt.cloverpay.models.CustomerPusherModel;
-import com.pockeyt.cloverpay.models.PockeytTransactionModel;
 import com.pockeyt.cloverpay.models.TokenModel;
 import com.pockeyt.cloverpay.ui.fragments.CustomerGridPagerFragment;
 import com.pockeyt.cloverpay.ui.fragments.CustomerListFragment;
@@ -32,15 +28,9 @@ import com.pockeyt.cloverpay.ui.viewModels.SelectedCustomerViewModel;
 import com.pockeyt.cloverpay.ui.viewModels.TokenViewModel;
 import com.pockeyt.cloverpay.utils.CloverTenderConnecter;
 import com.pockeyt.cloverpay.utils.Interfaces;
-import com.pockeyt.cloverpay.utils.PusherConnector;
-import com.pusher.client.channel.PrivateChannelEventListener;
+import com.pockeyt.cloverpay.utils.PusherService;
 
-import org.json.JSONException;
-import org.json.JSONObject;
-
-import io.reactivex.Observer;
 import io.reactivex.disposables.CompositeDisposable;
-import io.reactivex.disposables.Disposable;
 import io.reactivex.subjects.PublishSubject;
 
 public class MainActivity extends AppCompatActivity implements Interfaces.OnListCustomerSelectedInterface, DialogInterface.OnDismissListener {
@@ -48,6 +38,8 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
     public static final String CUSTOMER_VIEWPAGER_FRAGMENT = "customer_viewpager_fragment";
     public static final String CUSTOMER_GRID_PAGER_FRAGMENT = "customer_grid_pager_fragment";
     public static final String LOGIN_DIALOG_FRAGMENT = "login_dialog_fragment";
+    public static final String KEY_BUSINESS_SLUG = "key_business_slug";
+    public static final String KEY_BUSINESS_TOKEN = "key_business_token";
     private static final String TAG = MainActivity.class.getSimpleName();
 
     private PublishSubject<CustomerPusherModel> mCustomerPusherSubject;
@@ -137,7 +129,7 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
             } else {
                 setCustomerGridPagerFragment();
             }
-            connectToPusher();
+            connectToPusher(business);
         });
     }
 
@@ -195,69 +187,69 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
     }
 
 
-    private PrivateChannelEventListener privateChannelEventListener = new PrivateChannelEventListener() {
-        @Override
-        public void onAuthenticationFailure(String s, Exception e) {
-            Log.e(TAG, e.getMessage());
-        }
-
-        @Override
-        public void onSubscriptionSucceeded(String s) {
-            Log.d(TAG, s);
-        }
-
-        @Override
-        public void onEvent(String channel, String event, String data) {
-            Log.d(TAG, data);
-            try {
-                JSONObject jsonObject = new JSONObject(data);
-                JSONObject dataBody = jsonObject.getJSONObject("data");
-                handlePusherData(dataBody);
-            } catch (JSONException e) {
-                e.printStackTrace();
-            }
-        }
-    };
-
-    private void handlePusherData(JSONObject dataBody) throws JSONException {
-        String type = dataBody.getString("type");
-        CustomerModel customer = CustomerHandler.setCustomer(dataBody.getJSONObject("data"));
-        CustomerPusherModel customerPusher = new CustomerPusherModel(type, customer);
-        String toastMessage;
-        switch (type) {
-            case "deal_redeemed":
-                toastMessage = customer.getFirstName() + " has accepted your request to redeem their deal!";
-                break;
-            case "loyalty_redeemed":
-                toastMessage = customer.getFirstName() + " has accepted your request to redeem their loyalty reward!";
-                break;
-            case "redeem_later_deal":
-                toastMessage = customer.getFirstName() + " wishes to redeem their deal at a later time.";
-                break;
-            case "wrong_deal":
-                toastMessage = customer.getFirstName() + " claims they did not purchase this deal.";
-                break;
-            case "redeem_later_reward":
-                toastMessage = customer.getFirstName() + " wishes to redeem their loyalty reward at a later time.";
-                break;
-            case "not_earned_reward":
-                toastMessage = customer.getFirstName() + " claims they have not earned this loyalty reward.";
-                break;
-            case "wrong_bill":
-                toastMessage = customer.getFirstName() + " claims the bill they were sent was the wrong bill.";
-                break;
-            case "error_bill":
-                toastMessage = customer.getFirstName() + " claims their is an error with their bill.";
-                break;
-            default:
-                toastMessage = "Oops! An error occurred";
-        }
-        runOnUiThread(() -> {
-            Toast.makeText(getApplicationContext(), toastMessage, Toast.LENGTH_LONG).show();
-//            setCustomersViewModel(customer);
-            setCustomerPusherPubSub(customerPusher);
-        });
-    }
+//    private PrivateChannelEventListener privateChannelEventListener = new PrivateChannelEventListener() {
+//        @Override
+//        public void onAuthenticationFailure(String s, Exception e) {
+//            Log.e(TAG, e.getMessage());
+//        }
+//
+//        @Override
+//        public void onSubscriptionSucceeded(String s) {
+//            Log.d(TAG, s);
+//        }
+//
+//        @Override
+//        public void onEvent(String channel, String event, String data) {
+//            Log.d(TAG, data);
+//            try {
+//                JSONObject jsonObject = new JSONObject(data);
+//                JSONObject dataBody = jsonObject.getJSONObject("data");
+//                handlePusherData(dataBody);
+//            } catch (JSONException e) {
+//                e.printStackTrace();
+//            }
+//        }
+//    };
+//
+//    private void handlePusherData(JSONObject dataBody) throws JSONException {
+//        String type = dataBody.getString("type");
+//        CustomerModel customer = CustomerHandler.setCustomer(dataBody.getJSONObject("data"));
+//        CustomerPusherModel customerPusher = new CustomerPusherModel(type, customer);
+//        String toastMessage;
+//        switch (type) {
+//            case "deal_redeemed":
+//                toastMessage = customer.getFirstName() + " has accepted your request to redeem their deal!";
+//                break;
+//            case "loyalty_redeemed":
+//                toastMessage = customer.getFirstName() + " has accepted your request to redeem their loyalty reward!";
+//                break;
+//            case "redeem_later_deal":
+//                toastMessage = customer.getFirstName() + " wishes to redeem their deal at a later time.";
+//                break;
+//            case "wrong_deal":
+//                toastMessage = customer.getFirstName() + " claims they did not purchase this deal.";
+//                break;
+//            case "redeem_later_reward":
+//                toastMessage = customer.getFirstName() + " wishes to redeem their loyalty reward at a later time.";
+//                break;
+//            case "not_earned_reward":
+//                toastMessage = customer.getFirstName() + " claims they have not earned this loyalty reward.";
+//                break;
+//            case "wrong_bill":
+//                toastMessage = customer.getFirstName() + " claims the bill they were sent was the wrong bill.";
+//                break;
+//            case "error_bill":
+//                toastMessage = customer.getFirstName() + " claims their is an error with their bill.";
+//                break;
+//            default:
+//                toastMessage = "Oops! An error occurred";
+//        }
+//        runOnUiThread(() -> {
+//            Toast.makeText(getApplicationContext(), toastMessage, Toast.LENGTH_LONG).show();
+////            setCustomersViewModel(customer);
+//            setCustomerPusherPubSub(customerPusher);
+//        });
+//    }
 
     private void setCustomersViewModel(CustomerModel customer) {
         CustomersViewModel customersViewModel = ViewModelProviders.of(this).get(CustomersViewModel.class);
@@ -285,47 +277,51 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
     }
 
 
-    private void connectToPusher() {
-        PusherConnector pusherConnector = new PusherConnector(this);
-        if (!pusherConnector.getIsPusherConnected()) {
-            pusherConnector.connectToPusher();
-            bindToPusher();
-        }
+    private void connectToPusher(BusinessModel business) {
+        Intent intent = new Intent(MainActivity.this, PusherService.class);
+        intent.putExtra(KEY_BUSINESS_SLUG, business.getSlug());
+        intent.putExtra(KEY_BUSINESS_TOKEN, business.getToken().getValue());
+        startService(intent);
+//        PusherConnector pusherConnector = new PusherConnector(this);
+//        if (!pusherConnector.getIsPusherConnected()) {
+//            pusherConnector.connectToPusher();
+//            bindToPusher();
+//        }
     }
 
-    private void bindToPusher() {
-        PusherConnector pusherConnector = new PusherConnector(this);
-        if (pusherConnector.getIsPusherConnected()) {
-            pusherConnector.getPusherChannel().bind(pusherConnector.getPusherEvent(), privateChannelEventListener);
-        }
-    }
-
-    private void unbindToPusher() {
-        PusherConnector pusherConnector = new PusherConnector(this);
-        if (pusherConnector.getIsPusherConnected()) {
-            pusherConnector.getPusherChannel().unbind(pusherConnector.getPusherEvent(), privateChannelEventListener);
-        }
-    }
-
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        bindToPusher();
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        unbindToPusher();
-    }
+//    private void bindToPusher() {
+//        PusherConnector pusherConnector = new PusherConnector(this);
+//        if (pusherConnector.getIsPusherConnected()) {
+//            pusherConnector.getPusherChannel().bind(pusherConnector.getPusherEvent(), privateChannelEventListener);
+//        }
+//    }
+//
+//    private void unbindToPusher() {
+//        PusherConnector pusherConnector = new PusherConnector(this);
+//        if (pusherConnector.getIsPusherConnected()) {
+//            pusherConnector.getPusherChannel().unbind(pusherConnector.getPusherEvent(), privateChannelEventListener);
+//        }
+//    }
+//
+//
+//    @Override
+//    protected void onResume() {
+//        super.onResume();
+//        bindToPusher();
+//    }
+//
+//    @Override
+//    protected void onPause() {
+//        super.onPause();
+//        unbindToPusher();
+//    }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
         mCompositeDisposable.dispose();
         mCloverTenderConnecter.destroy();
-        unbindToPusher();
+//        unbindToPusher();
     }
 
     @Override

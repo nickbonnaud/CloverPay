@@ -5,6 +5,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.GET_ACCOUNTS"/>
     <uses-permission android:name="android.permission.USE_CREDENTIALS"/>
+    <uses-permission android:name="android.permission.VIBRATE" />
 
     <application
         android:name=".PockeytPay"
@@ -29,6 +30,18 @@
             </intent-filter>
 
         </activity>
+
+        <service android:name=".utils.PusherService" />
+        <receiver
+            android:name=".receivers.NotificationDismissedReceiver"
+            android:exported="false" />
+        <receiver
+            android:name=".receivers.NotificationErrorClickedReceiver"
+            android:exported="false" />
+        <receiver
+            android:name=".receivers.NotificationAlarmReceiver"
+            android:exported="false" />
+
     </application>
 
 </manifest>
