@@ -80,4 +80,5 @@ public class PusherService extends Service {
     public void stopErrorNotification(int notificationId) {
         mNotificationHandler.stopRepeatErrorNotification(notificationId);
     }
+
 }

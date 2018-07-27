@@ -5,7 +5,6 @@ import android.arch.lifecycle.ViewModelProviders;
 import android.content.Context;
 import android.content.Intent;
 import android.util.Log;
-import android.widget.Toast;
 
 import com.clover.sdk.util.CloverAccount;
 import com.clover.sdk.util.CloverAuth;
@@ -45,39 +44,30 @@ public class CloverTenderConnecter {
 
     public void init() {
         mTenderConnector.connect();
+    }
+
+    public void getAccountData() {
         getTenders();
+        getAuthToken();
     }
 
     private void getTenders() {
         Observable<List<Tender>> observable = Observable.fromCallable(()
                 -> mTenderConnector.getTenders());
-        Disposable disposable = observable.subscribeOn(Schedulers.io())
+        Disposable disposable =  observable.subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(this::handleResultGetTenders, this::handleError);
         mCompositeDisposable.add(disposable);
     }
 
-    public void getAuthToken() {
+    private void getAuthToken() {
         Observable<CloverAuth.AuthResult> observable = Observable.fromCallable(()
-            -> CloverAuth.authenticate(mContext, mAccount));
+                -> CloverAuth.authenticate(mContext, mAccount));
         Disposable disposable = observable.subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(this::handleResultGetToken, this::handleError);
         mCompositeDisposable.add(disposable);
     }
-
-
-    private void handleError(Throwable throwable) {
-        throwable.printStackTrace();
-        Log.e(TAG, throwable.getMessage());
-    }
-
-    private void handleResultGetToken(CloverAuth.AuthResult authResult) {
-        if (authResult.authToken != null && authResult.merchantId != null) {
-            postTokenData(authResult.authToken, authResult.merchantId);
-        }
-    }
-
 
     private void handleResultGetTenders(List<Tender> tenders) {
         boolean tenderExists = false;
@@ -85,6 +75,7 @@ public class CloverTenderConnecter {
             for (Tender tender : tenders) {
                 if (mContext.getString(R.string.tender_name).equals(tender.getLabel())) {
                     tenderExists = true;
+                    postTenderData(tender.getId());
                     break;
                 }
             }
@@ -106,16 +97,24 @@ public class CloverTenderConnecter {
 
     private void handleResultCreateTender(Tender tender) {
         Log.d(TAG, tender.getLabel());
-        Toast.makeText(mContext, "Pockeyt Pay Enabled!", Toast.LENGTH_LONG).show();
+        String tenderId = tender.getId();
+        postTenderData(tenderId);
     }
 
-    public CloverTransactionModel setCloverTransaction(Intent intent) {
-        return new CloverTransactionModel(
-                intent.getLongExtra(Intents.EXTRA_AMOUNT, 0),
-                intent.getLongExtra(Intents.EXTRA_TAX_AMOUNT, 0),
-                intent.getStringExtra(Intents.EXTRA_ORDER_ID),
-                intent.getStringExtra(Intents.EXTRA_MERCHANT_ID)
-        );
+    private void postTenderData(String tenderId) {
+        APIInterface apiInterface = APIClient.getClient().create(APIInterface.class);
+        Observable<Response<Business>> postTenderObservable = apiInterface.doSendTenderId(tenderId, "PATCH");
+        Disposable disposable = postTenderObservable.subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(this::handleResultUpdateBusiness, this::handleError);
+        mCompositeDisposable.add(disposable);
+    }
+
+
+    private void handleResultGetToken(CloverAuth.AuthResult authResult) {
+        if (authResult.authToken != null && authResult.merchantId != null) {
+            postTokenData(authResult.authToken, authResult.merchantId);
+        }
     }
 
     private void postTokenData(String authToken, String merchantId) {
@@ -123,11 +122,11 @@ public class CloverTenderConnecter {
         Observable<Response<Business>> postTokenObservable = apiInterface.doRequestSaveAuthToken("clover", authToken, merchantId, "PATCH");
         Disposable disposable = postTokenObservable.subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(this::handleResultSaveToken, this::handleError);
+                .subscribe(this::handleResultUpdateBusiness, this::handleError);
         mCompositeDisposable.add(disposable);
     }
 
-    private void handleResultSaveToken(Response<Business> businessResponse) {
+    private void handleResultUpdateBusiness(Response<Business> businessResponse) {
         if (businessResponse.isSuccessful()) {
             updateBusiness(businessResponse.body().getData());
         }
@@ -142,6 +141,20 @@ public class CloverTenderConnecter {
             business.setConnectedPos(data.getConnectedPos());
             businessViewModel.setBusiness(business);
         }
+    }
+
+    public CloverTransactionModel setCloverTransaction(Intent intent) {
+        return new CloverTransactionModel(
+                intent.getLongExtra(Intents.EXTRA_AMOUNT, 0),
+                intent.getLongExtra(Intents.EXTRA_TAX_AMOUNT, 0),
+                intent.getStringExtra(Intents.EXTRA_ORDER_ID),
+                intent.getStringExtra(Intents.EXTRA_MERCHANT_ID)
+        );
+    }
+
+    private void handleError(Throwable throwable) {
+        throwable.printStackTrace();
+        Log.e(TAG, throwable.getMessage());
     }
 
     public void destroy() {

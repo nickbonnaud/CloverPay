@@ -1,20 +1,25 @@
 package com.pockeyt.cloverpay.ui.activities;
 
 import android.arch.lifecycle.ViewModelProviders;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentTransaction;
+import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 
 import com.pockeyt.cloverpay.R;
+import com.pockeyt.cloverpay.handlers.NotificationHandler;
 import com.pockeyt.cloverpay.models.BusinessModel;
 import com.pockeyt.cloverpay.models.CloverTransactionModel;
 import com.pockeyt.cloverpay.models.CustomerModel;
-import com.pockeyt.cloverpay.models.CustomerPusherModel;
+import com.pockeyt.cloverpay.models.CustomerPubSubModel;
 import com.pockeyt.cloverpay.models.TokenModel;
 import com.pockeyt.cloverpay.ui.fragments.CustomerGridPagerFragment;
 import com.pockeyt.cloverpay.ui.fragments.CustomerListFragment;
@@ -40,12 +45,13 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
     public static final String LOGIN_DIALOG_FRAGMENT = "login_dialog_fragment";
     public static final String KEY_BUSINESS_SLUG = "key_business_slug";
     public static final String KEY_BUSINESS_TOKEN = "key_business_token";
-    private static final String TAG = MainActivity.class.getSimpleName();
 
-    private PublishSubject<CustomerPusherModel> mCustomerPusherSubject;
+    private static final String TAG = MainActivity.class.getSimpleName();
     private CompositeDisposable mCompositeDisposable = new CompositeDisposable();
     private CloverTenderConnecter mCloverTenderConnecter;
     private boolean mIsTablet;
+    private NotificationBroadcastReceiver mNotificationBroadcastReceiver;
+    private PublishSubject<CustomerPubSubModel> mCustomerPubSub;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -61,9 +67,17 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
 
         mIsTablet = getResources().getBoolean(R.bool.is_tablet);
         checkShouldShowLogin();
-        mCustomerPusherSubject = PublishSubject.create();
 
+        createCustomerPubSub();
         setResult(RESULT_CANCELED);
+    }
+
+    private void createCustomerPubSub() {
+        mCustomerPubSub = PublishSubject.create();
+    }
+
+    public PublishSubject<CustomerPubSubModel> getCustomerPubSub() {
+        return mCustomerPubSub;
     }
 
     private void setSelectedCustomerFromIntent(Intent cloverTenderIntent) {
@@ -120,8 +134,10 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
             TokenViewModel tokenViewModel = ViewModelProviders.of(this).get(TokenViewModel.class);
             tokenViewModel.setToken(business.getToken(), true);
 
+
+            // Fix this so that if token does not match
             if (business.getConnectedPos() == null || !business.getConnectedPos().equals("clover")) {
-                mCloverTenderConnecter.getAuthToken();
+                mCloverTenderConnecter.getAccountData();
             }
 
             if (!mIsTablet) {
@@ -187,74 +203,32 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
     }
 
 
-//    private PrivateChannelEventListener privateChannelEventListener = new PrivateChannelEventListener() {
-//        @Override
-//        public void onAuthenticationFailure(String s, Exception e) {
-//            Log.e(TAG, e.getMessage());
-//        }
-//
-//        @Override
-//        public void onSubscriptionSucceeded(String s) {
-//            Log.d(TAG, s);
-//        }
-//
-//        @Override
-//        public void onEvent(String channel, String event, String data) {
-//            Log.d(TAG, data);
-//            try {
-//                JSONObject jsonObject = new JSONObject(data);
-//                JSONObject dataBody = jsonObject.getJSONObject("data");
-//                handlePusherData(dataBody);
-//            } catch (JSONException e) {
-//                e.printStackTrace();
-//            }
-//        }
-//    };
-//
-//    private void handlePusherData(JSONObject dataBody) throws JSONException {
-//        String type = dataBody.getString("type");
-//        CustomerModel customer = CustomerHandler.setCustomer(dataBody.getJSONObject("data"));
-//        CustomerPusherModel customerPusher = new CustomerPusherModel(type, customer);
-//        String toastMessage;
-//        switch (type) {
-//            case "deal_redeemed":
-//                toastMessage = customer.getFirstName() + " has accepted your request to redeem their deal!";
-//                break;
-//            case "loyalty_redeemed":
-//                toastMessage = customer.getFirstName() + " has accepted your request to redeem their loyalty reward!";
-//                break;
-//            case "redeem_later_deal":
-//                toastMessage = customer.getFirstName() + " wishes to redeem their deal at a later time.";
-//                break;
-//            case "wrong_deal":
-//                toastMessage = customer.getFirstName() + " claims they did not purchase this deal.";
-//                break;
-//            case "redeem_later_reward":
-//                toastMessage = customer.getFirstName() + " wishes to redeem their loyalty reward at a later time.";
-//                break;
-//            case "not_earned_reward":
-//                toastMessage = customer.getFirstName() + " claims they have not earned this loyalty reward.";
-//                break;
-//            case "wrong_bill":
-//                toastMessage = customer.getFirstName() + " claims the bill they were sent was the wrong bill.";
-//                break;
-//            case "error_bill":
-//                toastMessage = customer.getFirstName() + " claims their is an error with their bill.";
-//                break;
-//            default:
-//                toastMessage = "Oops! An error occurred";
-//        }
-//        runOnUiThread(() -> {
-//            Toast.makeText(getApplicationContext(), toastMessage, Toast.LENGTH_LONG).show();
-////            setCustomersViewModel(customer);
-//            setCustomerPusherPubSub(customerPusher);
-//        });
-//    }
+
+    private void connectToPusher(BusinessModel business) {
+        Intent intent = new Intent(MainActivity.this, PusherService.class);
+        intent.putExtra(KEY_BUSINESS_SLUG, business.getSlug());
+        intent.putExtra(KEY_BUSINESS_TOKEN, business.getToken().getValue());
+        startService(intent);
+    }
+
+    public class NotificationBroadcastReceiver extends BroadcastReceiver {
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            Bundle bundle = intent.getExtras();
+            CustomerModel customer = bundle.getParcelable(NotificationHandler.KEY_CUSTOMER_BROADCAST);
+            String type = bundle.getString(NotificationHandler.KEY_TYPE_BROADCAST);
+            CustomerPubSubModel customerPubSubModel = new CustomerPubSubModel(type, customer);
+            mCustomerPubSub.onNext(customerPubSubModel);
+            setCustomersViewModel(customer);
+        }
+    }
 
     private void setCustomersViewModel(CustomerModel customer) {
         CustomersViewModel customersViewModel = ViewModelProviders.of(this).get(CustomersViewModel.class);
-        customersViewModel.getCustomers().observe(this, customers -> {
-            Boolean customerFound = false;
+        CustomerModel[] customers = customersViewModel.getCustomers().getValue();
+        Boolean customerFound = false;
+        if (customers != null) {
             for (int i = 0; i < customers.length; i++) {
                 if (customers[i].getId() == customer.getId()) {
                     customerFound = true;
@@ -264,64 +238,31 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
             if (customerFound) {
                 customersViewModel.setCustomers(customers);
             }
-        });
+        }
     }
 
-    public PublishSubject getCustomerPusherPubSub() {
-        return mCustomerPusherSubject;
+    @Override
+    protected void onResume() {
+        mNotificationBroadcastReceiver = new NotificationBroadcastReceiver();
+        final IntentFilter intentFilter = new IntentFilter(NotificationHandler.NOTIFICATION_BROADCAST_CUSTOMER_ACTION);
+        LocalBroadcastManager.getInstance(this).registerReceiver(mNotificationBroadcastReceiver, intentFilter);
+        super.onResume();
     }
 
-
-    public void setCustomerPusherPubSub(CustomerPusherModel customer) {
-        mCustomerPusherSubject.onNext(customer);
+    @Override
+    protected void onPause() {
+        if (mNotificationBroadcastReceiver != null) {
+            LocalBroadcastManager.getInstance(this).unregisterReceiver(mNotificationBroadcastReceiver);
+        }
+        mNotificationBroadcastReceiver = null;
+        super.onPause();
     }
-
-
-    private void connectToPusher(BusinessModel business) {
-        Intent intent = new Intent(MainActivity.this, PusherService.class);
-        intent.putExtra(KEY_BUSINESS_SLUG, business.getSlug());
-        intent.putExtra(KEY_BUSINESS_TOKEN, business.getToken().getValue());
-        startService(intent);
-//        PusherConnector pusherConnector = new PusherConnector(this);
-//        if (!pusherConnector.getIsPusherConnected()) {
-//            pusherConnector.connectToPusher();
-//            bindToPusher();
-//        }
-    }
-
-//    private void bindToPusher() {
-//        PusherConnector pusherConnector = new PusherConnector(this);
-//        if (pusherConnector.getIsPusherConnected()) {
-//            pusherConnector.getPusherChannel().bind(pusherConnector.getPusherEvent(), privateChannelEventListener);
-//        }
-//    }
-//
-//    private void unbindToPusher() {
-//        PusherConnector pusherConnector = new PusherConnector(this);
-//        if (pusherConnector.getIsPusherConnected()) {
-//            pusherConnector.getPusherChannel().unbind(pusherConnector.getPusherEvent(), privateChannelEventListener);
-//        }
-//    }
-//
-//
-//    @Override
-//    protected void onResume() {
-//        super.onResume();
-//        bindToPusher();
-//    }
-//
-//    @Override
-//    protected void onPause() {
-//        super.onPause();
-//        unbindToPusher();
-//    }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
         mCompositeDisposable.dispose();
         mCloverTenderConnecter.destroy();
-//        unbindToPusher();
     }
 
     @Override
@@ -333,4 +274,5 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
         }
         super.onBackPressed();
     }
+
 }

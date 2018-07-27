@@ -1,10 +1,11 @@
 package com.pockeyt.cloverpay.models;
 
-public class CustomerPusherModel {
+
+public class CustomerPubSubModel {
     private String type;
     private CustomerModel customer;
 
-    public CustomerPusherModel(String type, CustomerModel customer) {
+    public CustomerPubSubModel(String type, CustomerModel customer) {
         this.type = type;
         this.customer = customer;
     }
@@ -24,4 +25,5 @@ public class CustomerPusherModel {
     public void setCustomer(CustomerModel customer) {
         this.customer = customer;
     }
+
 }

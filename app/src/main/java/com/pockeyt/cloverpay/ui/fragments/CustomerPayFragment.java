@@ -26,7 +26,7 @@ import com.pockeyt.cloverpay.http.APIClient;
 import com.pockeyt.cloverpay.http.APIInterface;
 import com.pockeyt.cloverpay.models.CloverTransactionModel;
 import com.pockeyt.cloverpay.models.CustomerModel;
-import com.pockeyt.cloverpay.models.CustomerPusherModel;
+import com.pockeyt.cloverpay.models.CustomerPubSubModel;
 import com.pockeyt.cloverpay.models.PockeytTransactionModel;
 import com.pockeyt.cloverpay.ui.activities.MainActivity;
 import com.pockeyt.cloverpay.ui.viewModels.CloverTransactionViewModel;
@@ -85,11 +85,11 @@ public class CustomerPayFragment extends Fragment {
         });
 
 
-        setUpdatedCustomerWatcher();
         mView = inflater.inflate(R.layout.fragment_customer_pay, container, false);
         if (mCustomer == null) {
             setFragUINoCustomer();
         }
+        setCustomerPubSub();
         return mView;
     }
 
@@ -99,16 +99,6 @@ public class CustomerPayFragment extends Fragment {
         }
         return mSelectedCustomerViewModel;
     }
-
-    private void setUpdatedCustomerWatcher() {
-        Activity activity = getActivity();
-        if (activity instanceof MainActivity) {
-            PublishSubject<CustomerPusherModel> customerPusherSubject = ((MainActivity) activity).getCustomerPusherPubSub();
-            Disposable disposable = customerPusherSubject.subscribe(this::updateCustomer);
-            mCompositeDisposable.add(disposable);
-        }
-    }
-
 
     private void setFragmentUI() {
         mLoyaltyButton = mView.findViewById(R.id.loyaltyButton);
@@ -418,7 +408,16 @@ public class CustomerPayFragment extends Fragment {
         Toast.makeText(getActivity(), message, Toast.LENGTH_LONG).show();
     }
 
-    private void updateCustomer(CustomerPusherModel customer) {
+    private void setCustomerPubSub() {
+        Activity activity = getActivity();
+        if (activity instanceof MainActivity) {
+            PublishSubject<CustomerPubSubModel> customerPusherSubject = ((MainActivity) activity).getCustomerPubSub();
+            Disposable disposable = customerPusherSubject.subscribe(this::updateCustomer);
+            mCompositeDisposable.add(disposable);
+        }
+    }
+
+    private void updateCustomer(CustomerPubSubModel customer) {
         if ((mCustomer != null) && (mCustomer.getId() == customer.getCustomer().getId())) {
             updateView(customer.getType(), customer.getCustomer());
         }

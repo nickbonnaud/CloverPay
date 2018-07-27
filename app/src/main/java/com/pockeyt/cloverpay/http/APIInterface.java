@@ -47,6 +47,10 @@ public interface APIInterface {
     Observable<Response<Business>> doRequestSaveAuthToken(@Field("account_type") String accountType, @Field("token") String authToken, @Field("merchant_id") String merchantId,  @Field("_method") String method);
 
     @FormUrlEncoded
+    @POST("business")
+    Observable<Response<Business>> doSendTenderId(@Field("clover_tender_id") String tenderId, @Field("_method") String method);
+
+    @FormUrlEncoded
     @POST("transaction")
     Observable<Response<JSONObject>> doRequestPostTransaction(@Field("pos_type") String posType, @Field("pos_transaction_id") String orderId, @Field("user_id") int userId, @Field("total") long total, @Field("tax") long tax, @Field("transaction_id") int transactionId);
 }

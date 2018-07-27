@@ -9,16 +9,18 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
 import android.support.v4.app.NotificationCompat;
+import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
 import com.pockeyt.cloverpay.PockeytPay;
 import com.pockeyt.cloverpay.R;
 import com.pockeyt.cloverpay.models.CustomerModel;
-import com.pockeyt.cloverpay.models.CustomerPusherModel;
+import com.pockeyt.cloverpay.models.CustomerPubSubModel;
 import com.pockeyt.cloverpay.receivers.NotificationAlarmReceiver;
 import com.pockeyt.cloverpay.receivers.NotificationDismissedReceiver;
 import com.pockeyt.cloverpay.receivers.NotificationErrorClickedReceiver;
@@ -30,11 +32,17 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 
+import io.reactivex.subjects.PublishSubject;
+
 public class NotificationHandler  {
+    private static final String TAG = NotificationHandler.class.getSimpleName();
     public static final String NOTIFICATION_ID_KEY = "notification_id_key";
     public static final String NOTIFICATION_ORDER_ID = "notification_order_id";
     public static final int DEFAULT_NOTIFICATION_ID = 21;
-    private static final String TAG = NotificationHandler.class.getSimpleName();
+    public static final String NOTIFICATION_BROADCAST_CUSTOMER_ACTION = "notification_broadcast_customer_action";
+    public static final String KEY_CUSTOMER_BROADCAST = "customer_broadcast_key";
+    public static final String KEY_TYPE_BROADCAST = "type_broadcast_key";
+
     private static final String POCKEYT_NOTIFICATION_CHANNEL = "pockeyt_notification";
     private static int mNotificationIdToDismiss;
     private static ArrayList<Integer> mRunningNotifications = new ArrayList<Integer>();
@@ -42,6 +50,8 @@ public class NotificationHandler  {
     private String mBusinessToken;
     private AlarmManager mAlarmManager;
     private PendingIntent mAlarmIntent;
+
+    private PublishSubject<CustomerPubSubModel> mCustomerPusherSubject;
 
 
     public NotificationHandler(String businessSlug, String businessToken) {
@@ -100,7 +110,6 @@ public class NotificationHandler  {
     private void handlePusherData(JSONObject dataBody) throws JSONException {
         String type = dataBody.getString("type");
         CustomerModel customer = CustomerHandler.setCustomer(dataBody.getJSONObject("data"));
-        CustomerPusherModel customerPusher = new CustomerPusherModel(type, customer);
         JSONObject openTransaction = (dataBody.getJSONObject("data")).getJSONObject("open_transaction");
 
         String title;
@@ -151,7 +160,20 @@ public class NotificationHandler  {
         } else {
             showDefaultNotification(title, message, type);
         }
+        broadcastUpdatedCustomer(customer, type);
     }
+
+    private void broadcastUpdatedCustomer(CustomerModel customer, String type) {
+        Log.d(TAG, "inside setup broadcast in NH");
+        Intent intent = new Intent(NOTIFICATION_BROADCAST_CUSTOMER_ACTION);
+        Bundle bundle = new Bundle();
+        bundle.putParcelable(KEY_CUSTOMER_BROADCAST, customer);
+        bundle.putString(KEY_TYPE_BROADCAST, type);
+        intent.putExtras(bundle);
+
+        LocalBroadcastManager.getInstance(PockeytPay.getAppContext()).sendBroadcast(intent);
+    }
+
 
     private void repeatErrorNotification(String title, String message, JSONObject openTransaction) throws JSONException {
         int notificationId = openTransaction.getBoolean("has_open") ? openTransaction.getInt("transaction_id") : DEFAULT_NOTIFICATION_ID;

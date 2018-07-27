@@ -24,7 +24,7 @@ import android.widget.TextView;
 import com.pockeyt.cloverpay.R;
 import com.pockeyt.cloverpay.models.BusinessModel;
 import com.pockeyt.cloverpay.models.CustomerModel;
-import com.pockeyt.cloverpay.models.CustomerPusherModel;
+import com.pockeyt.cloverpay.models.CustomerPubSubModel;
 import com.pockeyt.cloverpay.models.PurchasedItemModel;
 import com.pockeyt.cloverpay.models.RecentPostInteractionModel;
 import com.pockeyt.cloverpay.models.RecentTransactionModel;
@@ -37,8 +37,6 @@ import com.pockeyt.cloverpay.utils.ImageLoader;
 import com.squareup.picasso.Picasso;
 import com.squareup.picasso.RequestCreator;
 import com.squareup.picasso.Target;
-
-import org.json.JSONException;
 
 import java.text.NumberFormat;
 import java.util.Locale;
@@ -98,13 +96,13 @@ public class CustomerDataFragment extends Fragment {
     private void setUpdateCustomerWatcher() {
         Activity activity = getActivity();
         if (activity instanceof MainActivity) {
-            PublishSubject<CustomerPusherModel> customerPusherSubject = ((MainActivity) activity).getCustomerPusherPubSub();
+            PublishSubject<CustomerPubSubModel> customerPusherSubject = ((MainActivity) activity).getCustomerPubSub();
             Disposable disposable = customerPusherSubject.subscribe(this::updateCustomer);
             mCompositeDisposable.add(disposable);
         }
     }
 
-    private void updateCustomer(CustomerPusherModel customer) {
+    private void updateCustomer(CustomerPubSubModel customer) {
         if ((mCustomer != null) && (mCustomer.getId() == customer.getCustomer().getId())) {
             getSelectedCustomerViewModel().setCustomer(customer.getCustomer());
         }
