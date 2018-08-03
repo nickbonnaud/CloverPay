@@ -316,9 +316,6 @@ public class CustomerList {
 
     public class PurchasedItem {
 
-        @SerializedName("id")
-        @Expose
-        private Integer id;
         @SerializedName("name")
         @Expose
         private String name;
@@ -328,14 +325,6 @@ public class CustomerList {
         @SerializedName("quantity")
         @Expose
         private Integer quantity;
-
-        public Integer getId() {
-            return id;
-        }
-
-        public void setId(Integer id) {
-            this.id = id;
-        }
 
         public String getName() {
             return name;

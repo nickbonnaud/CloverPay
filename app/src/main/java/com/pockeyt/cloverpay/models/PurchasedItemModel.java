@@ -1,24 +1,14 @@
 package com.pockeyt.cloverpay.models;
 
 public class PurchasedItemModel {
-    private int id;
     private String name;
     private int price;
     private int quantity;
 
-    public PurchasedItemModel(int id, String name, int price, int quantity) {
-        this.id = id;
+    public PurchasedItemModel(String name, int price, int quantity) {
         this.name = name;
         this.price = price;
         this.quantity = quantity;
-    }
-
-    public int getId() {
-        return id;
-    }
-
-    public void setId(int id) {
-        this.id = id;
     }
 
     public String getName() {

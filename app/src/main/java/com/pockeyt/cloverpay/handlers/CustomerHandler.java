@@ -12,16 +12,17 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class CustomerHandler {
 
-    public static CustomerModel[] setCustomers(List<CustomerList.Datum> data) {
-        CustomerModel[] customers = new CustomerModel[data.size()];
+    public static List<CustomerModel> setCustomers(List<CustomerList.Datum> data) {
+        List<CustomerModel> customers = new ArrayList<CustomerModel>();
 
         for (int i = 0; i < data.size(); i++) {
             CustomerModel customer = setCustomersData(data.get(i));
-            customers[i] = customer;
+            customers.add(customer);
         }
         return customers;
     }
@@ -80,7 +81,6 @@ public class CustomerHandler {
         PurchasedItemModel[] purchasedItems = new PurchasedItemModel[purchasedItemsData.size()];
         for (int i = 0; i < purchasedItemsData.size(); i++) {
             PurchasedItemModel purchasedItem = new PurchasedItemModel(
-                    purchasedItemsData.get(i).getId(),
                     purchasedItemsData.get(i).getName(),
                     purchasedItemsData.get(i).getPrice(),
                     purchasedItemsData.get(i).getQuantity()
@@ -165,7 +165,6 @@ public class CustomerHandler {
         PurchasedItemModel[] purchasedItems = new PurchasedItemModel[purchasedItemsData.length()];
         for (int i = 0; i < purchasedItemsData.length(); i++) {
             PurchasedItemModel purchasedItem = new PurchasedItemModel(
-                    purchasedItemsData.getJSONObject(i).getInt("id"),
                     purchasedItemsData.getJSONObject(i).getString("name"),
                     purchasedItemsData.getJSONObject(i).getInt("price"),
                     purchasedItemsData.getJSONObject(i).getInt("quantity")

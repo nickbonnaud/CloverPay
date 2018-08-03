@@ -10,6 +10,7 @@ import android.support.v4.app.FragmentPagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -22,9 +23,11 @@ import com.pockeyt.cloverpay.ui.viewModels.SelectedCustomerViewModel;
 import com.pockeyt.cloverpay.utils.DisplayHelpers;
 import com.pockeyt.cloverpay.utils.Interfaces;
 
+import java.util.List;
+
 public class CustomerGridPagerFragment extends Fragment implements Interfaces.OnGridCustomerSelectedInterface {
     private static final String TAG = CustomerGridPagerFragment.class.getSimpleName();
-    CustomerModel[] mCustomers;
+    List<CustomerModel> mCustomers;
     private View mView;
 
 
@@ -84,6 +87,7 @@ public class CustomerGridPagerFragment extends Fragment implements Interfaces.On
     @Override
     public void onGridCustomerSelected(CustomerModel customer) {
         SelectedCustomerViewModel selectedCustomerViewModel = ViewModelProviders.of(getActivity()).get(SelectedCustomerViewModel.class);
+        Log.d(TAG, "Customer selected");
         selectedCustomerViewModel.setCustomer(customer);
     }
 }

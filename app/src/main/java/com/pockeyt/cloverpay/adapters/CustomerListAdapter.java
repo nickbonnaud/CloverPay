@@ -20,14 +20,16 @@ import com.squareup.picasso.Picasso;
 import com.squareup.picasso.RequestCreator;
 import com.squareup.picasso.Target;
 
+import java.util.List;
+
 import jp.wasabeef.picasso.transformations.CropCircleTransformation;
 
 public class CustomerListAdapter extends RecyclerView.Adapter {
     private final Interfaces.OnListCustomerSelectedInterface mListener;
-    private CustomerModel[] mCustomers;
+    private List<CustomerModel> mCustomers;
     private Context mContext;
 
-    public CustomerListAdapter(CustomerModel[] customers, Interfaces.OnListCustomerSelectedInterface listener) {
+    public CustomerListAdapter(List<CustomerModel> customers, Interfaces.OnListCustomerSelectedInterface listener) {
         mCustomers = customers;
         mListener = listener;
     }
@@ -47,7 +49,7 @@ public class CustomerListAdapter extends RecyclerView.Adapter {
 
     @Override
     public int getItemCount() {
-        return mCustomers.length;
+        return mCustomers.size();
     }
 
     private class CustomerListViewHolder extends RecyclerView.ViewHolder implements View.OnClickListener {
@@ -70,16 +72,16 @@ public class CustomerListAdapter extends RecyclerView.Adapter {
 
         @Override
         public void onClick(View v) {
-            mListener.onListCustomerSelected(mCustomers[mIndex]);
+            mListener.onListCustomerSelected(mCustomers.get(mIndex));
         }
 
         private void setCustomerName() {
-            String customerName = mCustomers[mIndex].getFirstName() + " " + mCustomers[mIndex].getLastName();
+            String customerName = mCustomers.get(mIndex).getFirstName() + " " + mCustomers.get(mIndex).getLastName();
             mCustomerRow.setText(customerName);
         }
 
         private void setCustomerImage() {
-            RequestCreator creator = ImageLoader.load(mContext, mCustomers[mIndex].getPhotoUrl());
+            RequestCreator creator = ImageLoader.load(mContext, mCustomers.get(mIndex).getPhotoUrl());
             creator.transform(new CropCircleTransformation()).into(new Target() {
                 @Override
                 public void onBitmapLoaded(Bitmap bitmap, Picasso.LoadedFrom from) {

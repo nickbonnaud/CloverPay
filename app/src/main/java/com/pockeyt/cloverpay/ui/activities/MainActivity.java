@@ -35,6 +35,8 @@ import com.pockeyt.cloverpay.utils.CloverTenderConnecter;
 import com.pockeyt.cloverpay.utils.Interfaces;
 import com.pockeyt.cloverpay.utils.PusherService;
 
+import java.util.List;
+
 import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.subjects.PublishSubject;
 
@@ -52,28 +54,54 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
     private boolean mIsTablet;
     private NotificationBroadcastReceiver mNotificationBroadcastReceiver;
     private PublishSubject<CustomerPubSubModel> mCustomerPubSub;
+    private PublishSubject<BusinessModel> mAuthReady;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        createPubSubs();
+        setAuthReadyPubSub();
         mCloverTenderConnecter = new CloverTenderConnecter(this);
         mCloverTenderConnecter.init();
-        Intent cloverTenderIntent = getIntent();
-        if (cloverTenderIntent != null && cloverTenderIntent.getAction().equals("clover.intent.action.MERCHANT_TENDER")) {
-            setSelectedCustomerFromIntent(cloverTenderIntent);
-        }
 
         mIsTablet = getResources().getBoolean(R.bool.is_tablet);
         checkShouldShowLogin();
 
-        createCustomerPubSub();
         setResult(RESULT_CANCELED);
     }
 
-    private void createCustomerPubSub() {
+    private void createPubSubs() {
+        mAuthReady = PublishSubject.create();
         mCustomerPubSub = PublishSubject.create();
+    }
+
+    private void setAuthReadyPubSub() {
+        mAuthReady.subscribe(this::init);
+    }
+
+    private void init(BusinessModel business) {
+        getCloverIntent();
+
+        // Fix this so that if token does not match
+        if (business.getConnectedPos() == null || !business.getConnectedPos().equals("clover")) {
+            mCloverTenderConnecter.getAccountData();
+        }
+
+        if (!mIsTablet) {
+            setCustomerListFragment();
+        } else {
+            setCustomerGridPagerFragment();
+        }
+        connectToPusher(business);
+    }
+
+    private void getCloverIntent() {
+        Intent cloverTenderIntent = getIntent();
+        if (cloverTenderIntent != null && cloverTenderIntent.getAction().equals("clover.intent.action.MERCHANT_TENDER")) {
+            setSelectedCustomerFromIntent(cloverTenderIntent);
+        }
     }
 
     public PublishSubject<CustomerPubSubModel> getCustomerPubSub() {
@@ -89,13 +117,14 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
         customersViewModel.getCustomers().observe(this, customers -> {
             PockeytTransactionViewModel pockeytTransactionViewModel = ViewModelProviders.of(this).get(PockeytTransactionViewModel.class);
             pockeytTransactionViewModel.getpockeytTransaction(cloverTransaction.getOrderId()).observe(this, pockeytTransaction -> {
-                for (int i = 0; i < customers.length; i++) {
-                    if (customers[i].getId() == pockeytTransaction.getCustomerId()) {
+                for (int i = 0; i < customers.size(); i++) {
+                    if (customers.get(i).getId() == pockeytTransaction.getCustomerId()) {
                         if (pockeytTransaction.getTax() != cloverTransaction.getTaxAmount() || pockeytTransaction.getTotal() != cloverTransaction.getAmount()) {
                             pockeytTransactionViewModel.fetchPockeytTransaction(cloverTransaction.getOrderId());
                         }
                         SelectedCustomerViewModel selectedCustomerViewModel = ViewModelProviders.of(this).get(SelectedCustomerViewModel.class);
-                        selectedCustomerViewModel.setCustomer(customers[i]);
+                        selectedCustomerViewModel.setCustomer(customers.get(i));
+                        break;
                     }
                 }
             });
@@ -133,19 +162,7 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
         businessViewModel.getBusiness().observe(this, business -> {
             TokenViewModel tokenViewModel = ViewModelProviders.of(this).get(TokenViewModel.class);
             tokenViewModel.setToken(business.getToken(), true);
-
-
-            // Fix this so that if token does not match
-            if (business.getConnectedPos() == null || !business.getConnectedPos().equals("clover")) {
-                mCloverTenderConnecter.getAccountData();
-            }
-
-            if (!mIsTablet) {
-                setCustomerListFragment();
-            } else {
-                setCustomerGridPagerFragment();
-            }
-            connectToPusher(business);
+            mAuthReady.onNext(business);
         });
     }
 
@@ -220,25 +237,29 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
             String type = bundle.getString(NotificationHandler.KEY_TYPE_BROADCAST);
             CustomerPubSubModel customerPubSubModel = new CustomerPubSubModel(type, customer);
             mCustomerPubSub.onNext(customerPubSubModel);
-            setCustomersViewModel(customer);
+            setCustomersViewModel(customer, type);
         }
     }
 
-    private void setCustomersViewModel(CustomerModel customer) {
+    private void setCustomersViewModel(CustomerModel customer, String type) {
         CustomersViewModel customersViewModel = ViewModelProviders.of(this).get(CustomersViewModel.class);
-        CustomerModel[] customers = customersViewModel.getCustomers().getValue();
+        List<CustomerModel> customers = customersViewModel.getCustomers().getValue();
         Boolean customerFound = false;
-        if (customers != null) {
-            for (int i = 0; i < customers.length; i++) {
-                if (customers[i].getId() == customer.getId()) {
-                    customerFound = true;
-                    customers[i] = customer;
+        for (int i = 0; i < customers.size(); i++) {
+            if (customers.get(i).getId() == customer.getId()) {
+                customerFound = true;
+                if (type.equals("customer_exit_paid")) {
+                    customers.remove(i);
+                } else {
+                    customers.set(i, customer);
                 }
-            }
-            if (customerFound) {
-                customersViewModel.setCustomers(customers);
+                break;
             }
         }
+        if (!customerFound && !type.equals("customer_exit_paid")) {
+           customers.add(customer);
+        }
+        customersViewModel.setCustomers(customers);
     }
 
     @Override

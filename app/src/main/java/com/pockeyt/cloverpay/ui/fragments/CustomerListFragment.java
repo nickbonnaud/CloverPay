@@ -21,10 +21,12 @@ import com.pockeyt.cloverpay.ui.viewModels.CustomersViewModel;
 import com.pockeyt.cloverpay.ui.viewModels.SelectedCustomerViewModel;
 import com.pockeyt.cloverpay.utils.Interfaces;
 
+import java.util.List;
+
 public class CustomerListFragment extends Fragment {
     private static final String TAG = CustomerListFragment.class.getSimpleName();
     private View mView;
-    private CustomerModel[] mCustomers;
+    private List<CustomerModel> mCustomers;
 
     @Nullable
     @Override

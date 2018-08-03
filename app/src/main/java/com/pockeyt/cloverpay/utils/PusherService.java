@@ -42,12 +42,15 @@ public class PusherService extends Service {
         if (!mRunning && intent != null) {
             Log.d(TAG, "is not running");
             mRunning = true;
+            Log.d(TAG, intent.getStringExtra(MainActivity.KEY_BUSINESS_SLUG));
+            Log.d(TAG, intent.getStringExtra(MainActivity.KEY_BUSINESS_TOKEN));
             mNotificationHandler = new NotificationHandler(intent.getStringExtra(MainActivity.KEY_BUSINESS_SLUG), intent.getStringExtra(MainActivity.KEY_BUSINESS_TOKEN));
             mNotificationHandler.init();
+            Log.d(TAG, "After init");
             createNotificationChannel();
 
             NotificationCompat.Builder builder = new NotificationCompat.Builder(this, POCKEYT_SERVICES_CHANNEL);
-            builder.setSmallIcon(R.drawable.ic_done_white_48dp);
+            builder.setSmallIcon(R.drawable.ic_stat_logo);
             builder.setContentTitle("Pockeyt Services");
             builder.setContentText("Pockeyt Services are running");
             Notification notification = builder.build();

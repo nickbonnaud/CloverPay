@@ -16,16 +16,18 @@ import com.pockeyt.cloverpay.utils.ImageLoader;
 import com.pockeyt.cloverpay.utils.Interfaces;
 import com.squareup.picasso.RequestCreator;
 
+import java.util.List;
+
 import jp.wasabeef.picasso.transformations.CropCircleTransformation;
 
 public class CustomerGridAdapter extends RecyclerView.Adapter {
     private static final String TAG = CustomerGridAdapter.class.getSimpleName();
-    private CustomerModel[] mCustomers;
+    private List<CustomerModel> mCustomers;
     private Context mContext;
     private Interfaces.OnGridCustomerSelectedInterface mListener;
     private CustomerGridPagerFragment mCustomerGridPagerFragment;
 
-    public CustomerGridAdapter(CustomerModel[] customers, CustomerGridPagerFragment customerGridPagerFragment) {
+    public CustomerGridAdapter(List<CustomerModel> customers, CustomerGridPagerFragment customerGridPagerFragment) {
         mCustomers = customers;
         mCustomerGridPagerFragment = customerGridPagerFragment;
     }
@@ -46,7 +48,7 @@ public class CustomerGridAdapter extends RecyclerView.Adapter {
 
     @Override
     public int getItemCount() {
-        return mCustomers.length;
+        return mCustomers.size();
     }
 
     private class CustomerGridViewHolder extends  RecyclerView.ViewHolder implements View.OnClickListener {
@@ -69,18 +71,18 @@ public class CustomerGridAdapter extends RecyclerView.Adapter {
         }
 
         private void setCustomerName() {
-            String customerName = mCustomers[mIndex].getFirstName() + " " + mCustomers[mIndex].getLastName();
+            String customerName = mCustomers.get(mIndex).getFirstName() + " " + mCustomers.get(mIndex).getLastName();
             mCustomerName.setText(customerName);
         }
 
         private void setCustomerImage() {
-            RequestCreator creator = ImageLoader.load(mContext, mCustomers[mIndex].getPhotoUrl());
+            RequestCreator creator = ImageLoader.load(mContext, mCustomers.get(mIndex).getPhotoUrl());
             creator.transform(new CropCircleTransformation()).into(mCustomerImage);
         }
 
         @Override
         public void onClick(View v) {
-            mListener.onGridCustomerSelected(mCustomers[mIndex]);
+            mListener.onGridCustomerSelected(mCustomers.get(mIndex));
         }
     }
 }

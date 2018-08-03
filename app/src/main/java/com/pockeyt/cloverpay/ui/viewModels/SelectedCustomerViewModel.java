@@ -3,10 +3,12 @@ package com.pockeyt.cloverpay.ui.viewModels;
 import android.arch.lifecycle.LiveData;
 import android.arch.lifecycle.MutableLiveData;
 import android.arch.lifecycle.ViewModel;
+import android.util.Log;
 
 import com.pockeyt.cloverpay.models.CustomerModel;
 
 public class SelectedCustomerViewModel extends ViewModel {
+    private static final String TAG = SelectedCustomerViewModel.class.getSimpleName();
     private MutableLiveData<CustomerModel> selectedCustomer;
     private MutableLiveData<Boolean> isLoadingDeal;
     private MutableLiveData<Boolean> isLoadingLoyalty;
@@ -19,11 +21,18 @@ public class SelectedCustomerViewModel extends ViewModel {
     }
 
     public void setCustomer(CustomerModel customer) {
-        if (selectedCustomer.getValue() != null && selectedCustomer.getValue().getId() == customer.getId()) {
+        if (customer != null) {
+            if (selectedCustomer.getValue() != null && selectedCustomer.getValue().getId() == customer.getId()) {
+                isLoadingDeal = new MutableLiveData<Boolean>();
+                isLoadingLoyalty = new MutableLiveData<Boolean>();
+            }
+        } else {
             isLoadingDeal = new MutableLiveData<Boolean>();
             isLoadingLoyalty = new MutableLiveData<Boolean>();
         }
+        Log.d(TAG, "before");
         selectedCustomer.setValue(customer);
+        Log.d(TAG, "after");
     }
 
     public LiveData<Boolean> getIsLoadingDeal() {

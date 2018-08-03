@@ -7,6 +7,7 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -42,14 +43,13 @@ public class NotificationHandler  {
     public static final String NOTIFICATION_BROADCAST_CUSTOMER_ACTION = "notification_broadcast_customer_action";
     public static final String KEY_CUSTOMER_BROADCAST = "customer_broadcast_key";
     public static final String KEY_TYPE_BROADCAST = "type_broadcast_key";
+    public static final String KEY_IS_ERROR = "is_error_key";
 
     private static final String POCKEYT_NOTIFICATION_CHANNEL = "pockeyt_notification";
     private static int mNotificationIdToDismiss;
     private static ArrayList<Integer> mRunningNotifications = new ArrayList<Integer>();
     private String mBusinessSlug;
     private String mBusinessToken;
-    private AlarmManager mAlarmManager;
-    private PendingIntent mAlarmIntent;
 
     private PublishSubject<CustomerPubSubModel> mCustomerPusherSubject;
 
@@ -97,6 +97,7 @@ public class NotificationHandler  {
 
         @Override
         public void onEvent(String channel, String event, String data) {
+            Log.d(TAG, "on event");
             try {
                 JSONObject jsonObject = new JSONObject(data);
                 JSONObject dataBody = jsonObject.getJSONObject("data");
@@ -114,7 +115,10 @@ public class NotificationHandler  {
 
         String title;
         String message;
+        int icon = R.drawable.ic_stat_logo;
         boolean isError = false;
+        boolean isDealOrRewardError = false;
+        boolean isCustomerExitEnter = false;
 
         switch (type) {
             case "deal_redeemed":
@@ -128,18 +132,26 @@ public class NotificationHandler  {
             case "redeem_later_deal":
                 title = "Redeem Deal Later.";
                 message = customer.getFirstName() + " wishes to redeem their deal at a later time.";
+                icon = R.drawable.ic_stat_deal;
+                isDealOrRewardError = true;
                 break;
             case "wrong_deal":
                 title = "Wrong Deal!";
                 message = customer.getFirstName() + " claims they did not purchase this deal.";
+                icon = R.drawable.ic_stat_deal;
+                isDealOrRewardError = true;
                 break;
             case "redeem_later_reward":
                 title = "Redeem Loyalty Reward Later";
                 message = customer.getFirstName() + " wishes to redeem their loyalty reward at a later time.";
+                icon = R.drawable.ic_stat_loyalty;
+                isDealOrRewardError = true;
                 break;
             case "not_earned_reward":
                 title = "Reward Not Earned!";
                 message = customer.getFirstName() + " claims they have not earned this loyalty reward.";
+                icon = R.drawable.ic_stat_loyalty;
+                isDealOrRewardError = true;
                 break;
             case "wrong_bill":
                 title = "Wrong Bill Sent!";
@@ -151,20 +163,35 @@ public class NotificationHandler  {
                 message = customer.getFirstName() + " claims their is an error with their bill.";
                 isError = true;
                 break;
+            case "customer_enter":
+                title = "New Pockeyt Customer";
+                message = customer.getFirstName() + " " + customer.getLastName() + " has entered your location.";
+                isCustomerExitEnter = true;
+                break;
+            case "customer_exit_unpaid":
+                title = "Pockeyt Customer Exited";
+                message = customer.getFirstName() + " " + customer.getLastName() + " has left with an open bill.";
+                isCustomerExitEnter = true;
+                break;
+            case "customer_exit_paid":
+                title = null;
+                message = null;
+                break;
             default:
                 title = "Something Went Wrong!";
                 message = "Oops! An error occurred";
         }
         if (isError) {
             repeatErrorNotification(title, message, openTransaction);
-        } else {
-            showDefaultNotification(title, message, type);
+        } else if (isDealOrRewardError) {
+            showDealOrRewardNotification(title, message, icon);
+        } else if (isCustomerExitEnter) {
+            showCustomerExitEnterEvent(title, message, openTransaction);
         }
         broadcastUpdatedCustomer(customer, type);
     }
 
     private void broadcastUpdatedCustomer(CustomerModel customer, String type) {
-        Log.d(TAG, "inside setup broadcast in NH");
         Intent intent = new Intent(NOTIFICATION_BROADCAST_CUSTOMER_ACTION);
         Bundle bundle = new Bundle();
         bundle.putParcelable(KEY_CUSTOMER_BROADCAST, customer);
@@ -194,17 +221,24 @@ public class NotificationHandler  {
                     if (isOldestNotification(notificationId) || count == 0) {
                         NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
                         createNotificationChannel(notificationManager);
-                        int icon = count % 2 == 0 ? R.drawable.ic_account_circle_red_24dp : R.drawable.ic_account_circle_orange_24dp;
+                        boolean isColorized = count % 2 == 0;
                         Uri sound = count <= 60 ? Uri.parse("android.resource://" + context.getPackageName() + "/" + R.raw.alarm) : Uri.parse("android.resource://" + context.getPackageName() + "/" + R.raw.monotone);
+
+                        int icon = R.drawable.ic_stat_bill_error;
+                        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
+                            icon = isColorized ? R.drawable.ic_stat_bill_error_red : R.drawable.ic_stat_bill_error;
+                        }
 
                         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, POCKEYT_NOTIFICATION_CHANNEL);
                         builder.setSmallIcon(icon)
+                                .setColor(Color.RED)
+                                .setColorized(isColorized)
                                 .setPriority(NotificationCompat.PRIORITY_MAX)
                                 .setSound(sound)
                                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                                 .setContentTitle(title)
                                 .setContentText(message)
-                                .setContentIntent(createContentIntent(orderId, notificationId))
+                                .setContentIntent(createContentIntent(orderId, notificationId, true))
                                 .setDeleteIntent(createOnDismissedIntent(notificationId))
                                 .setAutoCancel(true);
                         Notification notification = builder.build();
@@ -239,30 +273,57 @@ public class NotificationHandler  {
         }
     }
 
-    private void showDefaultNotification(String title, String message, String type) {
+    private void showDealOrRewardNotification(String title, String message, int icon) {
         Context context = PockeytPay.getAppContext();
         NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         createNotificationChannel(notificationManager);
-        boolean isSuccessNotification = type.equals("deal_redeemed") || type.equals("loyalty_redeemed");
-
-        int priority = isSuccessNotification ? NotificationCompat.PRIORITY_DEFAULT : NotificationCompat.PRIORITY_MAX;
-        Uri sound = isSuccessNotification ? Uri.parse("android.resource://" + context.getPackageName() + "/" + R.raw.success) : Uri.parse("android.resource://" + context.getPackageName() + "/" + R.raw.monotone);
-        long dismissAfterTime = isSuccessNotification ? (3 * 60 * 1000) : (10 * 60 * 1000);
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, POCKEYT_NOTIFICATION_CHANNEL);
-        builder.setSmallIcon(R.drawable.ic_account_circle_orange_24dp)
-                .setPriority(priority)
-                .setSound(sound)
+        builder.setSmallIcon(icon)
+                .setPriority(NotificationCompat.PRIORITY_MAX)
+                .setSound(Uri.parse("android.resource://" + context.getPackageName() + "/" + R.raw.monotone))
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setVibrate(new long[] {1000, 500, 1000})
                 .setContentTitle(title)
                 .setAutoCancel(true)
                 .setContentIntent(PendingIntent.getActivity(context, 0, new Intent(), 0))
-                .setTimeoutAfter(dismissAfterTime)
+                .setTimeoutAfter(10 * 60 * 1000)
                 .setContentText(message);
         Notification notification = builder.build();
         notificationManager.notify(DEFAULT_NOTIFICATION_ID, notification);
-        setAlarmToRemoveSuccessNotification(dismissAfterTime);
+        setAlarmToRemoveSuccessNotification(10 * 60 * 1000, DEFAULT_NOTIFICATION_ID);
+    }
+
+    private void showCustomerExitEnterEvent(String title, String message, JSONObject openTransaction) throws JSONException {
+        Context context = PockeytPay.getAppContext();
+        boolean hasOpenTransaction =  openTransaction.getBoolean("has_open");
+
+        int notificationId = hasOpenTransaction ? openTransaction.getInt("transaction_id") : DEFAULT_NOTIFICATION_ID;
+        String orderId = hasOpenTransaction ? openTransaction.getString("pos_transaction_id") : null;
+        int icon = hasOpenTransaction ? R.drawable.ic_stat_customer_leave : R.drawable.ic_stat_customer_enter;
+        int color = hasOpenTransaction ? Color.rgb(243,156,18) : Color.rgb(39,174,96);
+        Uri sound = hasOpenTransaction ? Uri.parse("android.resource://" + context.getPackageName() + "/" + R.raw.monotone) : Uri.parse("android.resource://" + context.getPackageName() + "/" + R.raw.success);
+        PendingIntent pendingIntent = hasOpenTransaction ? createContentIntent(orderId, notificationId, false) : PendingIntent.getActivity(context, 0, new Intent(), 0);
+
+        NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        createNotificationChannel(notificationManager);
+
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(context, POCKEYT_NOTIFICATION_CHANNEL);
+        builder.setSmallIcon(icon)
+                .setPriority(NotificationCompat.PRIORITY_MAX)
+                .setSound(sound)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setVibrate(new long[] {1000, 500, 1000})
+                .setContentTitle(title)
+                .setAutoCancel(true)
+                .setContentIntent(pendingIntent)
+                .setTimeoutAfter(3 * 60 * 1000)
+                .setColorized(true)
+                .setColor(color)
+                .setContentText(message);
+        Notification notification = builder.build();
+        notificationManager.notify(notificationId, notification);
+        setAlarmToRemoveSuccessNotification(3 * 60 * 1000, notificationId);
     }
 
     private void createNotificationChannel(NotificationManager notificationManager) {
@@ -274,11 +335,12 @@ public class NotificationHandler  {
 
     }
 
-    private PendingIntent createContentIntent(String orderId, int notificationId) {
+    private PendingIntent createContentIntent(String orderId, int notificationId, boolean isError) {
         Context context = PockeytPay.getAppContext();
         Intent intent = new Intent(context, NotificationErrorClickedReceiver.class);
         intent.putExtra(NOTIFICATION_ORDER_ID, orderId);
         intent.putExtra(NOTIFICATION_ID_KEY, notificationId);
+        intent.putExtra(KEY_IS_ERROR, isError);
         PendingIntent pendingIntent = PendingIntent.getBroadcast(context.getApplicationContext(), notificationId, intent, 0);
         return pendingIntent;
     }
@@ -291,22 +353,23 @@ public class NotificationHandler  {
         return pendingIntent;
     }
 
-    private void setAlarmToRemoveSuccessNotification(long dismissAfterTime) {
-        cancelExistingAlarm();
+    private void setAlarmToRemoveSuccessNotification(long dismissAfterTime, int notificationId) {
         Context context = PockeytPay.getAppContext();
-        mAlarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         Intent intent = new Intent(context, NotificationAlarmReceiver.class);
-        mAlarmIntent = PendingIntent.getBroadcast(context, 0, intent, 0);
+        intent.putExtra(NOTIFICATION_ID_KEY, notificationId);
+        int requestCode = (int) System.currentTimeMillis();
+        PendingIntent alarmIntent = PendingIntent.getBroadcast(context, requestCode, intent, 0);
 
-        mAlarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + dismissAfterTime, mAlarmIntent);
+        alarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + dismissAfterTime, alarmIntent);
     }
 
-    private void cancelExistingAlarm() {
-        if (mAlarmManager != null && mAlarmIntent != null) {
-            mAlarmManager.cancel(mAlarmIntent);
-
-            mAlarmManager = null;
-            mAlarmIntent = null;
-        }
-    }
+//    private void cancelExistingAlarm() {
+//        if (mAlarmManager != null && mAlarmIntent != null) {
+//            mAlarmManager.cancel(mAlarmIntent);
+//
+//            mAlarmManager = null;
+//            mAlarmIntent = null;
+//        }
+//    }
 }

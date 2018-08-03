@@ -12,6 +12,7 @@ import com.pockeyt.cloverpay.http.retrofitModels.CustomerList;
 import com.pockeyt.cloverpay.models.CustomerModel;
 
 import java.io.IOException;
+import java.util.List;
 
 import io.reactivex.Observable;
 import io.reactivex.android.schedulers.AndroidSchedulers;
@@ -22,12 +23,12 @@ import retrofit2.Response;
 
 public class CustomersViewModel extends ViewModel {
     private static final String TAG = CustomersViewModel.class.getSimpleName();
-    private MutableLiveData<CustomerModel[]> customers;
+    private MutableLiveData<List<CustomerModel>> customers;
     private CompositeDisposable mCompositeDisposable = new CompositeDisposable();
 
-    public LiveData<CustomerModel[]> getCustomers() {
+    public LiveData<List<CustomerModel>> getCustomers() {
         if (customers == null) {
-            customers = new MutableLiveData<CustomerModel[]>();
+            customers = new MutableLiveData<List<CustomerModel>>();
             loadCustomers();
         }
         return customers;
@@ -51,14 +52,14 @@ public class CustomersViewModel extends ViewModel {
     private void handleResult(Response<CustomerList> customerListResponse) throws IOException {
         if (customerListResponse.isSuccessful()) {
             CustomerList customerList = customerListResponse.body();
-            CustomerModel[] customerModels = CustomerHandler.setCustomers(customerList.getData());
+            List<CustomerModel> customerModels = CustomerHandler.setCustomers(customerList.getData());
             setCustomers(customerModels);
         } else {
             Log.d(TAG, "BODY: " + customerListResponse.errorBody().string());
         }
     }
 
-    public void setCustomers(CustomerModel[] customerModels) {
+    public void setCustomers(List<CustomerModel> customerModels) {
         customers.setValue(customerModels);
     }
 

@@ -1,6 +1,5 @@
 package com.pockeyt.cloverpay.ui.fragments;
 
-import android.app.Activity;
 import android.arch.lifecycle.ViewModelProviders;
 import android.graphics.Bitmap;
 import android.graphics.Color;
@@ -24,11 +23,9 @@ import android.widget.TextView;
 import com.pockeyt.cloverpay.R;
 import com.pockeyt.cloverpay.models.BusinessModel;
 import com.pockeyt.cloverpay.models.CustomerModel;
-import com.pockeyt.cloverpay.models.CustomerPubSubModel;
 import com.pockeyt.cloverpay.models.PurchasedItemModel;
 import com.pockeyt.cloverpay.models.RecentPostInteractionModel;
 import com.pockeyt.cloverpay.models.RecentTransactionModel;
-import com.pockeyt.cloverpay.ui.activities.MainActivity;
 import com.pockeyt.cloverpay.ui.viewModels.BusinessViewModel;
 import com.pockeyt.cloverpay.ui.viewModels.SelectedCustomerViewModel;
 import com.pockeyt.cloverpay.utils.DateHelpers;
@@ -42,8 +39,6 @@ import java.text.NumberFormat;
 import java.util.Locale;
 
 import io.reactivex.disposables.CompositeDisposable;
-import io.reactivex.disposables.Disposable;
-import io.reactivex.subjects.PublishSubject;
 import jp.wasabeef.picasso.transformations.CropCircleTransformation;
 
 public class CustomerDataFragment extends Fragment {
@@ -60,11 +55,14 @@ public class CustomerDataFragment extends Fragment {
         View view = inflater.inflate(R.layout.fragment_customer_data, container, false);
         getSelectedCustomerViewModel().getCustomer().observe(this, customer -> {
             mCustomer = customer;
-            mBusiness = getBusinessViewModel().getBusiness().getValue();
-             setFragmentUI(view);
+            if (mCustomer != null) {
+                mBusiness = getBusinessViewModel().getBusiness().getValue();
+                setFragmentUI(view);
+            } else {
+                setFragUINoCustomer(view);
+            }
         });
 
-        setUpdateCustomerWatcher();
         if (mCustomer == null) {
             setFragUINoCustomer(view);
         }
@@ -91,21 +89,6 @@ public class CustomerDataFragment extends Fragment {
 
         CardView lastViewedPostCardView = view.findViewById(R.id.lastViewedPostCard);
         lastViewedPostCardView.setVisibility(View.GONE);
-    }
-
-    private void setUpdateCustomerWatcher() {
-        Activity activity = getActivity();
-        if (activity instanceof MainActivity) {
-            PublishSubject<CustomerPubSubModel> customerPusherSubject = ((MainActivity) activity).getCustomerPubSub();
-            Disposable disposable = customerPusherSubject.subscribe(this::updateCustomer);
-            mCompositeDisposable.add(disposable);
-        }
-    }
-
-    private void updateCustomer(CustomerPubSubModel customer) {
-        if ((mCustomer != null) && (mCustomer.getId() == customer.getCustomer().getId())) {
-            getSelectedCustomerViewModel().setCustomer(customer.getCustomer());
-        }
     }
 
     private void setFragmentUI(View view) {

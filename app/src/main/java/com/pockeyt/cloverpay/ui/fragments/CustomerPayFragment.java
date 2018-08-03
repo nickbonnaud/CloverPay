@@ -69,7 +69,12 @@ public class CustomerPayFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         getSelectedCustomerViewModel().getCustomer().observe(this, customer -> {
             mCustomer = customer;
-            setFragmentUI();
+            if (mCustomer != null) {
+                setFragmentUI();
+            } else {
+                setFragUINoCustomer();
+            }
+
         });
 
         getSelectedCustomerViewModel().getIsLoadingDeal().observe(this, isLoadingDeal -> {
@@ -133,6 +138,8 @@ public class CustomerPayFragment extends Fragment {
         mLoyaltyText = mView.findViewById(R.id.loyaltyText);
         mDealButton = mView.findViewById(R.id.dealButton);
         mDealText = mView.findViewById(R.id.dealText);
+        ImageView customerPayImage = mView.findViewById(R.id.customerPayImage);
+        customerPayImage.setImageResource(android.R.color.transparent);
         TextView customerPayName = mView.findViewById(R.id.customerPayName);
         customerPayName.setText("No Customer Selected");
         mPayButton = mView.findViewById(R.id.payButton);
@@ -424,6 +431,7 @@ public class CustomerPayFragment extends Fragment {
     }
 
     public void updateView(String type, CustomerModel customer) {
+        Log.d(TAG, type);
         switch (type) {
             case "deal_redeemed":
             case "redeem_later_deal":
@@ -437,9 +445,16 @@ public class CustomerPayFragment extends Fragment {
                 break;
             case "wrong_bill":
             case "error_bill":
-                updatePayUI(customer);
+                updatePayUIError(customer);
+                break;
+            case "customer_exit_paid":
+                removeCustomer();
                 break;
         }
+    }
+
+    private void removeCustomer() {
+        getSelectedCustomerViewModel().setCustomer(null);
     }
 
     private void updateDealUI(CustomerModel customer, String type) {
@@ -477,8 +492,8 @@ public class CustomerPayFragment extends Fragment {
 
     }
 
-    private void updatePayUI(CustomerModel customer) {
-
+    private void updatePayUIError(CustomerModel customer) {
+        getSelectedCustomerViewModel().setCustomer(customer);
     }
 
     @Override

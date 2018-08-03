@@ -13,9 +13,8 @@ public class NotificationAlarmReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
+        Log.d(TAG, intent.getIntExtra(NotificationHandler.NOTIFICATION_ID_KEY, NotificationHandler.DEFAULT_NOTIFICATION_ID) + "");
         NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
-        Log.d(TAG, "On received notification Alarm receiver");
-        Log.d(TAG, NotificationHandler.DEFAULT_NOTIFICATION_ID +"");
-        notificationManager.cancel(NotificationHandler.DEFAULT_NOTIFICATION_ID);
+        notificationManager.cancel(intent.getIntExtra(NotificationHandler.NOTIFICATION_ID_KEY, NotificationHandler.DEFAULT_NOTIFICATION_ID));
     }
 }
