@@ -2,7 +2,9 @@ package com.pockeyt.cloverpay.http;
 
 import com.pockeyt.cloverpay.http.retrofitModels.Business;
 import com.pockeyt.cloverpay.http.retrofitModels.CustomerList;
+import com.pockeyt.cloverpay.http.retrofitModels.EmployeeList;
 import com.pockeyt.cloverpay.http.retrofitModels.PockeytTransaction;
+import com.pockeyt.cloverpay.http.retrofitModels.TipsList;
 
 import org.json.JSONObject;
 
@@ -26,6 +28,19 @@ public interface APIInterface {
 
     @GET("transaction")
     Observable<Response<PockeytTransaction>> doGetPockeytTransaction(@Query("clover") String orderId);
+
+    @GET("employees")
+    Observable<Response<EmployeeList>> doGetEmployees();
+
+    @GET("tips")
+    Observable<Response<TipsList>> doGetTipsAll(@Query("allTips") int defaultAll);
+    @GET("tips")
+    Observable<Response<TipsList>> doGetTipsEmployee(@Query("employeeTips") String employeeId);
+    @GET("tips")
+    Observable<Response<TipsList>> doGetTipsAllWithDates(@Query("allTips") int defaultAll, @Query("startTime") String startTime, @Query("endTime") String endTime);
+    @GET("tips")
+    Observable<Response<TipsList>> doGetTipsEmployeeWithDates(@Query("employeeTips") String employeeId, @Query("startTime") String startTime, @Query("endTime") String endTime);
+
 
 
     // Post Requests
@@ -52,5 +67,9 @@ public interface APIInterface {
 
     @FormUrlEncoded
     @POST("transaction")
-    Observable<Response<JSONObject>> doRequestPostTransaction(@Field("pos_type") String posType, @Field("pos_transaction_id") String orderId, @Field("user_id") int userId, @Field("total") long total, @Field("tax") long tax, @Field("transaction_id") int transactionId);
+    Observable<Response<JSONObject>> doRequestPostTransaction(@Field("pos_type") String posType, @Field("pos_transaction_id") String orderId, @Field("user_id") int userId, @Field("total") long total, @Field("tax") long tax, @Field("employee_id") String employeeId, @Field("transaction_id") int transactionId);
+
+    @FormUrlEncoded
+    @POST("employees")
+    Observable<Response<JSONObject>> doAddRemoveEmployee(@Field("pos_employee_id") String cloverId, @Field("name") String name, @Field("role") String role, @Field("is_create") boolean isCreate);
 }

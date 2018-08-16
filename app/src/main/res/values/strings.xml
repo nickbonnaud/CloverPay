@@ -24,4 +24,15 @@
     <string name="email_not_found">Email not found.</string>
     <string name="error_invalid_password">Password does not match email.</string>
     <string name="tender_name">Pockeyt Pay</string>
+    <string name="tip_date">Date</string>
+    <string name="tip_employee">Employee</string>
+    <string name="tip_bill_id">ID</string>
+    <string name="tip_bill_total">Total</string>
+    <string name="tip_amount">Tip</string>
+    <string name="tips_tracker">Tips Tracker</string>
+    <string name="tips_start_date">Start Date</string>
+    <string name="tips_end_date">End Date</string>
+    <string name="tips_search">Update</string>
+    <string name="tips_search_button">Tips Search Button</string>
+    <string name="clear">Clear</string>
 </resources>

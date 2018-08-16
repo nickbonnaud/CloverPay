@@ -62,6 +62,7 @@ public class LoginDialogFragment extends DialogFragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         setCancelable(false);
+        getDialog().setTitle("Please Login");
         return inflater.inflate(R.layout.activity_login, container);
     }
 

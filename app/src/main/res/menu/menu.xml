@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item
+        android:id="@+id/action_tips"
+        android:icon="@drawable/ic_tips_button"
+        android:title="@string/tips_tracker"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_date_picker_start"
+        android:icon="@null"
+        android:title="@string/tips_start_date"
+        android:visible="false"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_date_picker_end"
+        android:icon="@null"
+        android:title="@string/tips_end_date"
+        android:visible="false"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_tips_search"
+        android:icon="@drawable/ic_tips_search"
+        android:title="@string/tips_search"
+        android:visible="false"
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_tips_dates_clear"
+        android:icon="@drawable/ic_cancel"
+        android:title="@string/clear"
+        android:visible="false"
+        app:showAsAction="ifRoom" />
+
+</menu>

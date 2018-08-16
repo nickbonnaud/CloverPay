@@ -348,9 +348,10 @@ public class CustomerPayFragment extends Fragment {
 
     private void sendPaymentRequestToCustomer() {
         Log.d(TAG, "Send pay request to customer");
+        Log.d(TAG, mCloverTransactionModel.getEmployeeId());
         APIInterface apiInterface = APIClient.getClient().create(APIInterface.class);
         int pockeytTransactionId =  mPockeytTransactionModel == null ? null : mPockeytTransactionModel.getId();
-        Observable<Response<JSONObject>> sendPayRequestObservable = apiInterface.doRequestPostTransaction("clover", mCloverTransactionModel.getOrderId(), mCustomer.getId(), mCloverTransactionModel.getAmount(), mCloverTransactionModel.getTaxAmount(), pockeytTransactionId);
+        Observable<Response<JSONObject>> sendPayRequestObservable = apiInterface.doRequestPostTransaction("clover", mCloverTransactionModel.getOrderId(), mCustomer.getId(), mCloverTransactionModel.getAmount(), mCloverTransactionModel.getTaxAmount(), mCloverTransactionModel.getEmployeeId(), pockeytTransactionId);
         Disposable disposable = sendPayRequestObservable.subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(this::handlePayResult, this::handlePayError);

@@ -7,7 +7,9 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -25,15 +27,21 @@ import com.pockeyt.cloverpay.models.CustomerPubSubModel;
 import com.pockeyt.cloverpay.receivers.NotificationAlarmReceiver;
 import com.pockeyt.cloverpay.receivers.NotificationDismissedReceiver;
 import com.pockeyt.cloverpay.receivers.NotificationErrorClickedReceiver;
+import com.pockeyt.cloverpay.utils.ImageLoader;
 import com.pockeyt.cloverpay.utils.PusherConnector;
 import com.pusher.client.channel.PrivateChannelEventListener;
+import com.squareup.picasso.Picasso;
+import com.squareup.picasso.RequestCreator;
+import com.squareup.picasso.Target;
 
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.IOException;
 import java.util.ArrayList;
 
 import io.reactivex.subjects.PublishSubject;
+import jp.wasabeef.picasso.transformations.CropCircleTransformation;
 
 public class NotificationHandler  {
     private static final String TAG = NotificationHandler.class.getSimpleName();
@@ -104,11 +112,13 @@ public class NotificationHandler  {
                 handlePusherData(dataBody);
             } catch (JSONException e) {
                 e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
             }
         }
     };
 
-    private void handlePusherData(JSONObject dataBody) throws JSONException {
+    private void handlePusherData(JSONObject dataBody) throws JSONException, IOException {
         String type = dataBody.getString("type");
         CustomerModel customer = CustomerHandler.setCustomer(dataBody.getJSONObject("data"));
         JSONObject openTransaction = (dataBody.getJSONObject("data")).getJSONObject("open_transaction");
@@ -181,14 +191,23 @@ public class NotificationHandler  {
                 title = "Something Went Wrong!";
                 message = "Oops! An error occurred";
         }
+
+        Bitmap customerImage = getCustomerPhoto(customer);
+
         if (isError) {
-            repeatErrorNotification(title, message, openTransaction);
+            repeatErrorNotification(title, message, openTransaction, customerImage);
         } else if (isDealOrRewardError) {
-            showDealOrRewardNotification(title, message, icon);
+            showDealOrRewardNotification(title, message, icon, customerImage);
         } else if (isCustomerExitEnter) {
-            showCustomerExitEnterEvent(title, message, openTransaction);
+            showCustomerExitEnterEvent(title, message, openTransaction, customerImage);
         }
         broadcastUpdatedCustomer(customer, type);
+    }
+
+    private Bitmap getCustomerPhoto(CustomerModel customer) throws IOException {
+        Context context = PockeytPay.getAppContext();
+        RequestCreator creator = ImageLoader.load(context,customer.getPhotoUrl());
+        return creator.transform(new CropCircleTransformation()).get();
     }
 
     private void broadcastUpdatedCustomer(CustomerModel customer, String type) {
@@ -202,19 +221,28 @@ public class NotificationHandler  {
     }
 
 
-    private void repeatErrorNotification(String title, String message, JSONObject openTransaction) throws JSONException {
+    private void repeatErrorNotification(String title, String message, JSONObject openTransaction, Bitmap customerImage) throws JSONException {
         int notificationId = openTransaction.getBoolean("has_open") ? openTransaction.getInt("transaction_id") : DEFAULT_NOTIFICATION_ID;
         String orderId = openTransaction.getBoolean("has_open") ? openTransaction.getString("pos_transaction_id") : null;
+        Context context = PockeytPay.getAppContext();
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            showHeadsUpNotification(context, title, message, orderId, customerImage, notificationId);
+        } else {
+            showActionBarNotification(context, title, message, orderId, customerImage, notificationId);
+        }
+    }
+
+    private void showActionBarNotification(Context context, String title, String message, String orderId, Bitmap customerImage, int notificationId) {
         if (findRunningNotificationIndex(notificationId) == -1) {
             mRunningNotifications.add(notificationId);
         } else {
             return;
         }
-        Context context = PockeytPay.getAppContext();
         Handler handler = new Handler(Looper.getMainLooper());
         handler.postDelayed(new Runnable() {
             private int count = 0;
+
             @Override
             public void run() {
                 if (getShouldRepeatNotification(notificationId)) {
@@ -223,11 +251,7 @@ public class NotificationHandler  {
                         createNotificationChannel(notificationManager);
                         boolean isColorized = count % 2 == 0;
                         Uri sound = count <= 60 ? Uri.parse("android.resource://" + context.getPackageName() + "/" + R.raw.alarm) : Uri.parse("android.resource://" + context.getPackageName() + "/" + R.raw.monotone);
-
-                        int icon = R.drawable.ic_stat_bill_error;
-                        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
-                            icon = isColorized ? R.drawable.ic_stat_bill_error_red : R.drawable.ic_stat_bill_error;
-                        }
+                        int icon = isColorized ? R.drawable.ic_stat_bill_error_red : R.drawable.ic_stat_bill_error;
 
                         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, POCKEYT_NOTIFICATION_CHANNEL);
                         builder.setSmallIcon(icon)
@@ -240,6 +264,7 @@ public class NotificationHandler  {
                                 .setContentText(message)
                                 .setContentIntent(createContentIntent(orderId, notificationId, true))
                                 .setDeleteIntent(createOnDismissedIntent(notificationId))
+                                .setLargeIcon(customerImage)
                                 .setAutoCancel(true);
                         Notification notification = builder.build();
                         notificationManager.notify(notificationId, notification);
@@ -251,6 +276,29 @@ public class NotificationHandler  {
                 }
             }
         }, 2000);
+    }
+
+    private void showHeadsUpNotification(Context context, String title, String message, String orderId, Bitmap customerImage, int notificationId) {
+        NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+        createNotificationChannel(notificationManager);
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(context, POCKEYT_NOTIFICATION_CHANNEL);
+        builder.setSmallIcon(R.drawable.ic_stat_bill_error)
+                .setColor(Color.RED)
+                .setColorized(true)
+                .setPriority(NotificationCompat.PRIORITY_MAX)
+                .setSound(Uri.parse("android.resource://" + context.getPackageName() + "/" + R.raw.monotone))
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setContentTitle(title)
+                .setContentText(message)
+                .setContentIntent(createContentIntent(orderId, notificationId, true))
+                .setDeleteIntent(createOnDismissedIntent(notificationId))
+                .setLargeIcon(customerImage)
+                .setAutoCancel(true)
+                .setOngoing(true)
+                .setCategory(Notification.CATEGORY_CALL)
+                .setFullScreenIntent(PendingIntent.getActivity(context, 0, new Intent(), 0), true);
+        Notification notification = builder.build();
+        notificationManager.notify(notificationId, notification);
     }
 
     private boolean getShouldRepeatNotification(int notificationId) {
@@ -273,7 +321,7 @@ public class NotificationHandler  {
         }
     }
 
-    private void showDealOrRewardNotification(String title, String message, int icon) {
+    private void showDealOrRewardNotification(String title, String message, int icon, Bitmap customerImage) {
         Context context = PockeytPay.getAppContext();
         NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         createNotificationChannel(notificationManager);
@@ -288,13 +336,14 @@ public class NotificationHandler  {
                 .setAutoCancel(true)
                 .setContentIntent(PendingIntent.getActivity(context, 0, new Intent(), 0))
                 .setTimeoutAfter(10 * 60 * 1000)
-                .setContentText(message);
+                .setContentText(message)
+                .setLargeIcon(customerImage);
         Notification notification = builder.build();
         notificationManager.notify(DEFAULT_NOTIFICATION_ID, notification);
         setAlarmToRemoveSuccessNotification(10 * 60 * 1000, DEFAULT_NOTIFICATION_ID);
     }
 
-    private void showCustomerExitEnterEvent(String title, String message, JSONObject openTransaction) throws JSONException {
+    private void showCustomerExitEnterEvent(String title, String message, JSONObject openTransaction, Bitmap customerImage) throws JSONException, IOException {
         Context context = PockeytPay.getAppContext();
         boolean hasOpenTransaction =  openTransaction.getBoolean("has_open");
 
@@ -308,6 +357,7 @@ public class NotificationHandler  {
         NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         createNotificationChannel(notificationManager);
 
+
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, POCKEYT_NOTIFICATION_CHANNEL);
         builder.setSmallIcon(icon)
                 .setPriority(NotificationCompat.PRIORITY_MAX)
@@ -320,6 +370,7 @@ public class NotificationHandler  {
                 .setTimeoutAfter(3 * 60 * 1000)
                 .setColorized(true)
                 .setColor(color)
+                .setLargeIcon(customerImage)
                 .setContentText(message);
         Notification notification = builder.build();
         notificationManager.notify(notificationId, notification);
@@ -364,12 +415,5 @@ public class NotificationHandler  {
         alarmManager.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + dismissAfterTime, alarmIntent);
     }
 
-//    private void cancelExistingAlarm() {
-//        if (mAlarmManager != null && mAlarmIntent != null) {
-//            mAlarmManager.cancel(mAlarmIntent);
-//
-//            mAlarmManager = null;
-//            mAlarmIntent = null;
-//        }
-//    }
+
 }
