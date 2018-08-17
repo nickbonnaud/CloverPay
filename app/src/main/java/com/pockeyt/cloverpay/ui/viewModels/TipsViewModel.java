@@ -3,13 +3,19 @@ package com.pockeyt.cloverpay.ui.viewModels;
 import android.arch.lifecycle.LiveData;
 import android.arch.lifecycle.MutableLiveData;
 import android.arch.lifecycle.ViewModel;
+import android.content.Context;
 import android.util.Log;
 
+import com.clover.sdk.v1.ResultStatus;
+import com.clover.sdk.v3.employees.Employee;
+import com.clover.sdk.v3.employees.EmployeeConnector;
+import com.pockeyt.cloverpay.PockeytPay;
 import com.pockeyt.cloverpay.http.APIClient;
 import com.pockeyt.cloverpay.http.APIInterface;
 import com.pockeyt.cloverpay.http.retrofitModels.TipsList;
 import com.pockeyt.cloverpay.models.EmployeeModel;
 import com.pockeyt.cloverpay.models.TipsModel;
+import com.pockeyt.cloverpay.utils.CloverEmployeeConnector;
 
 import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
@@ -30,6 +36,7 @@ public class TipsViewModel extends ViewModel {
     private MutableLiveData<List<TipsModel>> transactions;
     private EmployeeModel mEmployee;
     private CompositeDisposable mCompositeDisposable = new CompositeDisposable();
+    private List<EmployeeModel> mEmployees;
 
     private MutableLiveData<Date> startDate;
     private MutableLiveData<Date> endDate;
@@ -38,7 +45,8 @@ public class TipsViewModel extends ViewModel {
     private MutableLiveData<Integer> tipTotal;
     private MutableLiveData<List<TipsModel>> selectedTransactionsForTips;
 
-    public LiveData<List<TipsModel>> getEmployeeTransactions(boolean isManager, EmployeeModel employee) {
+    public LiveData<List<TipsModel>> getEmployeeTransactions(boolean isManager, EmployeeModel employee, List<EmployeeModel> employees) {
+        mEmployees = employees;
         if (this.transactions == null || this.mEmployee == null || !this.mEmployee.getCloverId().equals(employee.getCloverId())) {
             this.mEmployee = employee;
             this.transactions = new MutableLiveData<List<TipsModel>>();
@@ -104,7 +112,6 @@ public class TipsViewModel extends ViewModel {
             if (startDate.getValue() != null && endDate.getValue() != null) {
                 transactionsObservable = apiInterface.doGetTipsAllWithDates(1, formatUrlDate(startDate.getValue()), formatUrlDate(endDate.getValue()));
             } else {
-                Log.d(TAG, "Inside null");
                 transactionsObservable = apiInterface.doGetTipsAll(1);
             }
 
@@ -133,13 +140,17 @@ public class TipsViewModel extends ViewModel {
     private void handleError(Throwable throwable) {
         setIsLoading(false);
         Log.e(TAG, "ERROR: " + throwable.getMessage());
+        throwable.printStackTrace();
     }
 
     private void formatTransactionsList(TipsList tipsList) {
         List<TipsModel> transactionsListHolder = new ArrayList<TipsModel>();
         for (TipsList.Datum tip : tipsList.getData()) {
+
+            String name = tip.getEmployeeId().equals(mEmployee.getCloverId()) ? mEmployee.getName() : getEmployeeName(tip.getEmployeeId());
             TipsModel tipsModel = new TipsModel(
-                    tip.getDate(), mEmployee.getName(),
+                    tip.getDate(),
+                    name,
                     tip.getEmployeeId(),
                     tip.getTransactionId(),
                     formatCurrency(tip.getTotal()),
@@ -152,6 +163,17 @@ public class TipsViewModel extends ViewModel {
             setSelectedTransactionsForTips(transactionsListHolder);
         }
         setEmployeeTransactions(transactionsListHolder);
+    }
+
+    private String getEmployeeName(String employeeId) {
+        Log.d(TAG, employeeId);
+        for (EmployeeModel employee : mEmployees) {
+            Log.d(TAG, employee.getName() + " " + employee.getCloverId());
+            if (employee.getCloverId().equals(employeeId)) {
+                return employee.getName();
+            }
+        }
+        return "Unknown";
     }
 
     private void setEmployeeTransactions(List<TipsModel> transactionsListHolder) {
@@ -212,9 +234,6 @@ public class TipsViewModel extends ViewModel {
         selectedTransactions.remove(index);
         setSelectedTransactionsForTips(selectedTransactions);
     }
-
-
-
 
 
 

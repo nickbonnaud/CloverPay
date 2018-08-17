@@ -25,6 +25,7 @@ public class CurrentEmployeeViewModel extends ViewModel {
         return this.currentEmployee;
     }
 
+
     private void fetchCurrentEmployee() {
         connectEmployeeConnector();
         mEmployeeConnector.getEmployee(new EmployeeConnector.EmployeeCallback<Employee>() {

@@ -6,8 +6,8 @@ android {
         applicationId "com.pockeyt.cloverpay"
         minSdkVersion 17
         targetSdkVersion 27
-        versionCode 32
-        versionName "1.31"
+        versionCode 54
+        versionName "1.53"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
         multiDexEnabled true
 

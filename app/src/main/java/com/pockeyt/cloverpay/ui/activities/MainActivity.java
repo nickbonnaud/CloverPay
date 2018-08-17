@@ -13,17 +13,14 @@ import android.support.v4.app.FragmentTransaction;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 
 import com.clover.sdk.v1.Intents;
-import com.clover.sdk.v1.ResultStatus;
 import com.clover.sdk.v3.employees.Employee;
 import com.clover.sdk.v3.employees.EmployeeConnector;
 import com.pockeyt.cloverpay.R;
-import com.pockeyt.cloverpay.handlers.EmployeeHandler;
 import com.pockeyt.cloverpay.handlers.NotificationHandler;
 import com.pockeyt.cloverpay.models.BusinessModel;
 import com.pockeyt.cloverpay.models.CloverTransactionModel;
@@ -40,12 +37,10 @@ import com.pockeyt.cloverpay.ui.viewModels.BusinessViewModel;
 import com.pockeyt.cloverpay.ui.viewModels.CloverTransactionViewModel;
 import com.pockeyt.cloverpay.ui.viewModels.CurrentEmployeeViewModel;
 import com.pockeyt.cloverpay.ui.viewModels.CustomersViewModel;
-import com.pockeyt.cloverpay.ui.viewModels.EmployeesViewModel;
 import com.pockeyt.cloverpay.ui.viewModels.PockeytTransactionViewModel;
 import com.pockeyt.cloverpay.ui.viewModels.SelectedCustomerViewModel;
 import com.pockeyt.cloverpay.ui.viewModels.TipsViewModel;
 import com.pockeyt.cloverpay.ui.viewModels.TokenViewModel;
-import com.pockeyt.cloverpay.utils.CloverEmployeeConnector;
 import com.pockeyt.cloverpay.utils.CloverTenderConnecter;
 import com.pockeyt.cloverpay.utils.Interfaces;
 import com.pockeyt.cloverpay.utils.PusherService;
@@ -108,7 +103,6 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
 
     private void init(BusinessModel business) {
         getCloverIntent();
-        syncEmployees();
         // Fix this so that if token does not match
         if (business.getConnectedPos() == null || !business.getConnectedPos().equals("clover")) {
             mCloverTenderConnecter.getAccountData();
@@ -120,11 +114,6 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
             setCustomerGridPagerFragment();
         }
         connectToPusher(business);
-    }
-
-    private void syncEmployees() {
-        EmployeesViewModel employeesViewModel = ViewModelProviders.of(MainActivity.this).get(EmployeesViewModel.class);
-        employeesViewModel.getEmployees();
     }
 
     private void getCloverIntent() {
@@ -372,6 +361,8 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
                 searchButton.setActionView(null);
             }
             searchButton.setVisible(false);
+            MenuItem filterButton = mMenu.findItem(R.id.action_employee_filter);
+            filterButton.setVisible(false);
 
             TipsViewModel tipsViewModel = ViewModelProviders.of(this).get(TipsViewModel.class);
             tipsViewModel.setEndDate(null);

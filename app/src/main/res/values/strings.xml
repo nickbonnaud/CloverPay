@@ -35,4 +35,7 @@
     <string name="tips_search">Update</string>
     <string name="tips_search_button">Tips Search Button</string>
     <string name="clear">Clear</string>
+    <string name="employee_filter">Employee Filter</string>
+    <string name="set">Set</string>
+    <string name="cancel">Cancel</string>
 </resources>

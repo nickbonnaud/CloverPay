@@ -4,10 +4,10 @@ import android.arch.lifecycle.LiveData;
 import android.arch.lifecycle.ViewModelProviders;
 import android.content.Context;
 import android.graphics.Color;
-import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.support.v4.app.DialogFragment;
 import android.support.v4.app.Fragment;
 import android.support.v4.widget.TextViewCompat;
 import android.support.v7.app.ActionBar;
@@ -34,6 +34,7 @@ import com.pockeyt.cloverpay.handlers.EmployeeHandler;
 import com.pockeyt.cloverpay.models.EmployeeModel;
 import com.pockeyt.cloverpay.models.TipsModel;
 import com.pockeyt.cloverpay.ui.viewModels.CurrentEmployeeViewModel;
+import com.pockeyt.cloverpay.ui.viewModels.EmployeesViewModel;
 import com.pockeyt.cloverpay.ui.viewModels.TipsViewModel;
 import com.pockeyt.cloverpay.utils.DisplayHelpers;
 
@@ -44,27 +45,33 @@ import java.util.GregorianCalendar;
 import java.util.List;
 import java.util.Locale;
 
-public class TipsTableFragment extends Fragment {
+public class TipsTableFragment extends Fragment implements EmployeesCheckboxFragment.EmployeeCheckBoxListener {
     private static final String TAG = TipsTableFragment.class.getSimpleName();
+    public static final String EMPLOYEE_SELECTOR_FRAGMENT = "employee_selector_fragment";
+    public static final String ROLE_ADMIN = "ADMIN";
+    public static final String ROLE_MANAGER = "MANAGER";
     private EmployeeModel mCurrentEmployee;
     private List<TipsModel> mCurrentTips;
     private int mOpenedDatePicker;
     private Menu mMenu;
-    private View mView;
+    private List<EmployeeModel> mEmployees;
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_employee_tips, container, false);
-        mView = view;
         getCurrentEmployee().observe(this, currentEmployee -> {
             mCurrentEmployee = currentEmployee;
-            getTips(isManager(), mCurrentEmployee).observe(this, tips -> {
-                mCurrentTips = tips;
-                setTipsTable(view);
-                if (mCurrentTips.size() > 0) {
-                    setHeaders(view);
-                }
+            EmployeesViewModel employeesViewModel = ViewModelProviders.of(getActivity()).get(EmployeesViewModel.class);
+            employeesViewModel.getEmployees().observe(this, employees -> {
+                mEmployees = employees;
+                getTips(isManager(), mCurrentEmployee, employees).observe(this, tips -> {
+                    mCurrentTips = tips;
+                    setTipsTable(view);
+                    if (mCurrentTips.size() > 0) {
+                        setHeaders(view);
+                    }
+                });
             });
         });
 
@@ -232,9 +239,9 @@ public class TipsTableFragment extends Fragment {
         return currentEmployeeViewModel.getCurrentEmployee();
     }
 
-    private LiveData<List<TipsModel>> getTips(boolean isManager, EmployeeModel employee) {
+    private LiveData<List<TipsModel>> getTips(boolean isManager, EmployeeModel employee, List<EmployeeModel> employees) {
         TipsViewModel tipsViewModel = ViewModelProviders.of(getActivity()).get(TipsViewModel.class);
-        return tipsViewModel.getEmployeeTransactions(isManager, employee);
+        return tipsViewModel.getEmployeeTransactions(isManager, employee, employees);
     }
 
     @Override
@@ -246,6 +253,15 @@ public class TipsTableFragment extends Fragment {
 
         setOptionsTitles();
         handleLoadingApiData();
+        showEmployeeFilterButton(menu);
+    }
+
+    private void showEmployeeFilterButton(Menu menu) {
+        getCurrentEmployee().observe(this, currentEmployee -> {
+            if (currentEmployee.getRole().equals(ROLE_MANAGER) || currentEmployee.getRole().equals(ROLE_ADMIN)) {
+                getMenuItem(menu, R.id.action_employee_filter).setVisible(true);
+            }
+        });
     }
 
     private MenuItem getMenuItem(Menu menu, int actionId) {
@@ -258,8 +274,15 @@ public class TipsTableFragment extends Fragment {
             return showDateTimePickers(item);
         } else if (item.getItemId() == R.id.action_tips_dates_clear) {
             return clearDatePicker();
+        } else if (item.getItemId() == R.id.action_employee_filter) {
+            showEmployeeFilterDialog();
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    private void showEmployeeFilterDialog() {
+        EmployeesCheckboxFragment fragment = new EmployeesCheckboxFragment().newInstance(mEmployees);
+        fragment.show(getActivity().getSupportFragmentManager(), EMPLOYEE_SELECTOR_FRAGMENT);
     }
 
     private boolean clearDatePicker() {
@@ -358,5 +381,18 @@ public class TipsTableFragment extends Fragment {
         return n.format(amount / 100.0);
     }
 
+    @Override
+    public void onDialogPositiveClick(DialogFragment dialog) {
+        Log.d(TAG, "Positive Clicked");
+    }
 
+    @Override
+    public void onDialogNegativeClick(DialogFragment dialog) {
+        Log.d(TAG, "Negative Clicked");
+    }
+
+    @Override
+    public void onDialogNeutralClick(DialogFragment dialog) {
+        Log.d(TAG, "Neutral Clicked");
+    }
 }
