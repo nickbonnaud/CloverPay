@@ -25,13 +25,8 @@ public class EmployeesCheckboxFragment extends DialogFragment {
     List<EmployeeModel> mSelectedEmployees;
     List<EmployeeModel> mAllEmployees;
     CharSequence[] mEmployeeListOptions;
-    EmployeeCheckBoxListener mListener;
+    EmployeesCheckboxListener mListener;
 
-    public interface EmployeeCheckBoxListener {
-        public void onDialogPositiveClick(DialogFragment dialog);
-        public void onDialogNegativeClick(DialogFragment dialog);
-        public void onDialogNeutralClick(DialogFragment dialog);
-    }
 
     public static EmployeesCheckboxFragment newInstance(List<EmployeeModel> employees) {
         EmployeesCheckboxFragment fragment = new EmployeesCheckboxFragment();
@@ -44,6 +39,7 @@ public class EmployeesCheckboxFragment extends DialogFragment {
     @NonNull
     @Override
     public Dialog onCreateDialog(Bundle savedInstanceState) {
+        mListener = (TipsTableFragment) getTargetFragment();
         mSelectedEmployees = new ArrayList<EmployeeModel>();
         mAllEmployees = getArguments().getParcelableArrayList(EMPLOYEES_KEY);
         mEmployeeListOptions = setEmployeeNames();
@@ -63,33 +59,32 @@ public class EmployeesCheckboxFragment extends DialogFragment {
                 .setPositiveButton(getString(R.string.set), new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int id) {
-                        mListener.onDialogPositiveClick(EmployeesCheckboxFragment.this);
+                        mListener.onEmployeesCheckboxPositiveClicked(EmployeesCheckboxFragment.this);
                     }
                 })
                 .setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        mListener.onDialogNegativeClick(EmployeesCheckboxFragment.this);
+                        mListener.onEmployeesCheckboxNegativeClicked(EmployeesCheckboxFragment.this);
                     }
                 })
                 .setNeutralButton(R.string.clear, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        mListener.onDialogNeutralClick(EmployeesCheckboxFragment.this);
+                        mListener.onEmployeesCheckboxNeutralClicked(EmployeesCheckboxFragment.this);
                     }
                 });
         return builder.create();
     }
 
-    @Override
-    public void onAttach(Context context) {
-        super.onAttach(context);
-        try {
-            mListener = (EmployeeCheckBoxListener) context;
-        } catch (ClassCastException e) {
-            throw new ClassCastException(context.toString() + "Must implement interface");
-        }
+
+    public interface EmployeesCheckboxListener {
+        public void onEmployeesCheckboxPositiveClicked(DialogFragment dialogFragment);
+        public void onEmployeesCheckboxNegativeClicked(DialogFragment dialogFragment);
+        public void onEmployeesCheckboxNeutralClicked(DialogFragment dialogFragment);
     }
+
+
 
     private EmployeeModel getEmployeeByName(CharSequence name) {
         for (EmployeeModel employee : mAllEmployees) {

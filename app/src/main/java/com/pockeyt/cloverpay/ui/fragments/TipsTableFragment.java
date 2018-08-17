@@ -45,9 +45,10 @@ import java.util.GregorianCalendar;
 import java.util.List;
 import java.util.Locale;
 
-public class TipsTableFragment extends Fragment implements EmployeesCheckboxFragment.EmployeeCheckBoxListener {
+public class TipsTableFragment extends Fragment implements EmployeesCheckboxFragment.EmployeesCheckboxListener {
     private static final String TAG = TipsTableFragment.class.getSimpleName();
     public static final String EMPLOYEE_SELECTOR_FRAGMENT = "employee_selector_fragment";
+    public static final int EMPLOYEE_SELECTOR_FRAGMENT_CODE = 0;
     public static final String ROLE_ADMIN = "ADMIN";
     public static final String ROLE_MANAGER = "MANAGER";
     private EmployeeModel mCurrentEmployee;
@@ -282,6 +283,7 @@ public class TipsTableFragment extends Fragment implements EmployeesCheckboxFrag
 
     private void showEmployeeFilterDialog() {
         EmployeesCheckboxFragment fragment = new EmployeesCheckboxFragment().newInstance(mEmployees);
+        fragment.setTargetFragment(this, EMPLOYEE_SELECTOR_FRAGMENT_CODE);
         fragment.show(getActivity().getSupportFragmentManager(), EMPLOYEE_SELECTOR_FRAGMENT);
     }
 
@@ -382,17 +384,17 @@ public class TipsTableFragment extends Fragment implements EmployeesCheckboxFrag
     }
 
     @Override
-    public void onDialogPositiveClick(DialogFragment dialog) {
-        Log.d(TAG, "Positive Clicked");
+    public void onEmployeesCheckboxPositiveClicked(DialogFragment dialogFragment) {
+
     }
 
     @Override
-    public void onDialogNegativeClick(DialogFragment dialog) {
-        Log.d(TAG, "Negative Clicked");
+    public void onEmployeesCheckboxNegativeClicked(DialogFragment dialogFragment) {
+
     }
 
     @Override
-    public void onDialogNeutralClick(DialogFragment dialog) {
-        Log.d(TAG, "Neutral Clicked");
+    public void onEmployeesCheckboxNeutralClicked(DialogFragment dialogFragment) {
+
     }
 }
