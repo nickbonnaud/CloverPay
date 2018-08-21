@@ -3,26 +3,22 @@ package com.pockeyt.cloverpay.ui.viewModels;
 import android.arch.lifecycle.LiveData;
 import android.arch.lifecycle.MutableLiveData;
 import android.arch.lifecycle.ViewModel;
-import android.content.Context;
 import android.util.Log;
 
-import com.clover.sdk.v1.ResultStatus;
-import com.clover.sdk.v3.employees.Employee;
-import com.clover.sdk.v3.employees.EmployeeConnector;
-import com.pockeyt.cloverpay.PockeytPay;
 import com.pockeyt.cloverpay.http.APIClient;
 import com.pockeyt.cloverpay.http.APIInterface;
 import com.pockeyt.cloverpay.http.retrofitModels.TipsList;
 import com.pockeyt.cloverpay.models.EmployeeModel;
 import com.pockeyt.cloverpay.models.TipsModel;
-import com.pockeyt.cloverpay.utils.CloverEmployeeConnector;
 
 import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 import io.reactivex.Observable;
 import io.reactivex.android.schedulers.AndroidSchedulers;
@@ -34,9 +30,9 @@ import retrofit2.Response;
 public class TipsViewModel extends ViewModel {
     private static final String TAG = TipsViewModel.class.getSimpleName();
     private MutableLiveData<List<TipsModel>> transactions;
-    private EmployeeModel mEmployee;
     private CompositeDisposable mCompositeDisposable = new CompositeDisposable();
     private List<EmployeeModel> mEmployees;
+    private List<EmployeeModel> mSelectedEmployees;
 
     private MutableLiveData<Date> startDate;
     private MutableLiveData<Date> endDate;
@@ -45,25 +41,44 @@ public class TipsViewModel extends ViewModel {
     private MutableLiveData<Integer> tipTotal;
     private MutableLiveData<List<TipsModel>> selectedTransactionsForTips;
 
-    public LiveData<List<TipsModel>> getEmployeeTransactions(boolean isManager, EmployeeModel employee, List<EmployeeModel> employees) {
-        mEmployees = employees;
-        if (this.transactions == null || this.mEmployee == null || !this.mEmployee.getCloverId().equals(employee.getCloverId())) {
-            this.mEmployee = employee;
+    public LiveData<List<TipsModel>> getEmployeeTransactions(List<EmployeeModel> selectedEmployees, List<EmployeeModel> employees) {
+        this.mEmployees = employees;
+        if (this.transactions == null || selectedEmployeesChange(selectedEmployees)) {
+            this.mSelectedEmployees = selectedEmployees;
             this.transactions = new MutableLiveData<List<TipsModel>>();
-            fetchTransactions(isManager);
+            fetchTransactions(selectedEmployees);
         }
         return this.transactions;
     }
 
-    public void getEmployeeTransactionsWithDates(boolean isManager, EmployeeModel employee) {
-        this.mEmployee = employee;
-        fetchTransactions(isManager);
+    public void paramsChangedSearchTransactions(List<EmployeeModel> selectedEmployees, List<EmployeeModel> employees) {
+        this.mEmployees = employees;
+        this.mSelectedEmployees = selectedEmployees;
+        fetchTransactions(selectedEmployees);
     }
 
-    public void getEmployeeTransactionsDefault(boolean isManager, EmployeeModel employee) {
-        this.mEmployee = employee;
-        fetchTransactions(isManager);
+
+    private boolean selectedEmployeesChange(List<EmployeeModel> selectedEmployees) {
+        if (mSelectedEmployees == null && selectedEmployees == null) {
+            return false;
+        } else if (mSelectedEmployees == null) {
+            return true;
+        } else if (selectedEmployees == null) {
+            return true;
+        } else {
+            if (mSelectedEmployees.size() != selectedEmployees.size()) {
+                return true;
+            } else {
+                for (int i = 0; i < mSelectedEmployees.size(); i++) {
+                    if (!mSelectedEmployees.get(i).getCloverId().equals(selectedEmployees.get(i).getCloverId())) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
     }
+
 
     public void setIsLoading(Boolean isLoading) {
         this.isLoading.setValue(isLoading);
@@ -104,28 +119,42 @@ public class TipsViewModel extends ViewModel {
         return this.endDate;
     }
 
-    private void fetchTransactions(boolean isManager) {
+    private void fetchTransactions(List<EmployeeModel> selectedEmployees) {
         setIsLoading(true);
         APIInterface apiInterface = APIClient.getClient().create(APIInterface.class);
         Observable<Response<TipsList>> transactionsObservable;
-        if (isManager) {
-            if (startDate.getValue() != null && endDate.getValue() != null) {
-                transactionsObservable = apiInterface.doGetTipsAllWithDates(1, formatUrlDate(startDate.getValue()), formatUrlDate(endDate.getValue()));
-            } else {
-                transactionsObservable = apiInterface.doGetTipsAll(1);
-            }
-
-        } else {
-            if (startDate.getValue() != null && endDate.getValue() != null) {
-                transactionsObservable = apiInterface.doGetTipsEmployeeWithDates(mEmployee.getCloverId(), formatUrlDate(startDate.getValue()), formatUrlDate(endDate.getValue()));
-            } else {
-                transactionsObservable = apiInterface.doGetTipsEmployee(mEmployee.getCloverId());
-            }
-        }
+        transactionsObservable = apiInterface.doGetTips(formatQueryParamsMap(selectedEmployees), formatQueryParamsList(selectedEmployees));
         Disposable disposable = transactionsObservable.subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(this::handleResult, this::handleError);
         mCompositeDisposable.add(disposable);
+    }
+
+    private Map<String, String> formatQueryParamsMap(List<EmployeeModel> selectedEmployees) {
+        Map<String, String> queryParams = new HashMap<>();
+        if (startDate.getValue() != null && endDate.getValue() != null) {
+            queryParams.put("startTime", formatUrlDate(startDate.getValue()));
+            queryParams.put("endTime", formatUrlDate(endDate.getValue()));
+        }
+
+        if (selectedEmployees == null || selectedEmployees.size() == 0) {
+            queryParams.put("allTips", "1");
+        }
+
+        if (queryParams.size() == 0) {
+            queryParams.put("default", "1");
+        }
+        return queryParams;
+    }
+
+    private List<String> formatQueryParamsList(List<EmployeeModel> selectedEmployees) {
+        List<String> employeeTips = new ArrayList<>();
+        if (selectedEmployees != null && selectedEmployees.size() > 0) {
+            for (EmployeeModel employee : selectedEmployees) {
+                employeeTips.add(employee.getCloverId());
+            }
+        }
+        return employeeTips.size() == 0 ? null : employeeTips;
     }
 
     private void handleResult(Response<TipsList> tipsListResponse) {
@@ -147,7 +176,7 @@ public class TipsViewModel extends ViewModel {
         List<TipsModel> transactionsListHolder = new ArrayList<TipsModel>();
         for (TipsList.Datum tip : tipsList.getData()) {
 
-            String name = tip.getEmployeeId().equals(mEmployee.getCloverId()) ? mEmployee.getName() : getEmployeeName(tip.getEmployeeId());
+            String name = getEmployeeName(tip.getEmployeeId());
             TipsModel tipsModel = new TipsModel(
                     tip.getDate(),
                     name,
@@ -166,9 +195,7 @@ public class TipsViewModel extends ViewModel {
     }
 
     private String getEmployeeName(String employeeId) {
-        Log.d(TAG, employeeId);
         for (EmployeeModel employee : mEmployees) {
-            Log.d(TAG, employee.getName() + " " + employee.getCloverId());
             if (employee.getCloverId().equals(employeeId)) {
                 return employee.getName();
             }

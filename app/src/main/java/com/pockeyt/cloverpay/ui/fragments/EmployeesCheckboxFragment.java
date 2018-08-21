@@ -2,19 +2,16 @@ package com.pockeyt.cloverpay.ui.fragments;
 
 import android.app.Dialog;
 import android.arch.lifecycle.ViewModelProviders;
-import android.content.Context;
 import android.content.DialogInterface;
 import android.os.Bundle;
 import android.os.Parcelable;
 import android.support.annotation.NonNull;
 import android.support.v4.app.DialogFragment;
 import android.support.v7.app.AlertDialog;
-import android.util.Log;
 
-import com.clover.sdk.v3.employees.Employee;
 import com.pockeyt.cloverpay.R;
 import com.pockeyt.cloverpay.models.EmployeeModel;
-import com.pockeyt.cloverpay.ui.viewModels.EmployeesViewModel;
+import com.pockeyt.cloverpay.ui.viewModels.SelectedEmployeesViewModel;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -22,10 +19,9 @@ import java.util.List;
 public class EmployeesCheckboxFragment extends DialogFragment {
     private static final String EMPLOYEES_KEY = "employees_key";
     private static final String TAG = EmployeesCheckboxFragment.class.getSimpleName();
-    List<EmployeeModel> mSelectedEmployees;
-    List<EmployeeModel> mAllEmployees;
     CharSequence[] mEmployeeListOptions;
-    EmployeesCheckboxListener mListener;
+    boolean[] mEmployeeCheckedOptions;
+    SelectedEmployeesViewModel mSelectedEmployeeViewModel;
 
 
     public static EmployeesCheckboxFragment newInstance(List<EmployeeModel> employees) {
@@ -39,55 +35,55 @@ public class EmployeesCheckboxFragment extends DialogFragment {
     @NonNull
     @Override
     public Dialog onCreateDialog(Bundle savedInstanceState) {
-        mListener = (TipsTableFragment) getTargetFragment();
-        mSelectedEmployees = new ArrayList<EmployeeModel>();
-        mAllEmployees = getArguments().getParcelableArrayList(EMPLOYEES_KEY);
-        mEmployeeListOptions = setEmployeeNames();
+        EmployeesCheckboxListener listener = (TipsTableFragment) getTargetFragment();
+        List<EmployeeModel> allEmployees = getArguments().getParcelableArrayList(EMPLOYEES_KEY);
+
+        setEmployeeChoiceItemsData(allEmployees);
         AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
         builder.setTitle("Select Employees")
-                .setMultiChoiceItems(mEmployeeListOptions, null, new DialogInterface.OnMultiChoiceClickListener() {
+                .setMultiChoiceItems(mEmployeeListOptions, mEmployeeCheckedOptions, new DialogInterface.OnMultiChoiceClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int index, boolean isChecked) {
-                        EmployeeModel employee = getEmployeeByName(mEmployeeListOptions[index]);
-                        if (isChecked) {
-                            mSelectedEmployees.add(employee);
-                        } else if (mSelectedEmployees.contains(employee)) {
-                            mSelectedEmployees.remove(employee);
-                        }
+                        EmployeeModel employee = getEmployeeByName(mEmployeeListOptions[index], allEmployees);
+                        getSelectedEmployeeViewModel().toggleSelectedEmployee(employee);
                     }
                 })
                 .setPositiveButton(getString(R.string.set), new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int id) {
-                        mListener.onEmployeesCheckboxPositiveClicked(EmployeesCheckboxFragment.this);
+                        listener.onEmployeesCheckboxPositiveClicked(getSelectedEmployeeViewModel().getSelectedEmployees().getValue());
                     }
                 })
                 .setNegativeButton(R.string.cancel, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        mListener.onEmployeesCheckboxNegativeClicked(EmployeesCheckboxFragment.this);
+                        listener.onEmployeesCheckboxNegativeClicked(EmployeesCheckboxFragment.this);
                     }
                 })
                 .setNeutralButton(R.string.clear, new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        mListener.onEmployeesCheckboxNeutralClicked(EmployeesCheckboxFragment.this);
+                        getSelectedEmployeeViewModel().setSelectedEmployees(null);
+                        listener.onEmployeesCheckboxNeutralClicked(EmployeesCheckboxFragment.this);
                     }
                 });
         return builder.create();
     }
 
+    private SelectedEmployeesViewModel getSelectedEmployeeViewModel() {
+        return mSelectedEmployeeViewModel == null ? ViewModelProviders.of(getActivity()).get(SelectedEmployeesViewModel.class) : mSelectedEmployeeViewModel;
+    }
 
     public interface EmployeesCheckboxListener {
-        public void onEmployeesCheckboxPositiveClicked(DialogFragment dialogFragment);
+        public void onEmployeesCheckboxPositiveClicked(List<EmployeeModel> selectedEmployees);
         public void onEmployeesCheckboxNegativeClicked(DialogFragment dialogFragment);
         public void onEmployeesCheckboxNeutralClicked(DialogFragment dialogFragment);
     }
 
 
 
-    private EmployeeModel getEmployeeByName(CharSequence name) {
-        for (EmployeeModel employee : mAllEmployees) {
+    private EmployeeModel getEmployeeByName(CharSequence name, List<EmployeeModel> allEmployees) {
+        for (EmployeeModel employee : allEmployees) {
             if (employee.getName().equals(name)) {
                 return employee;
             }
@@ -95,11 +91,16 @@ public class EmployeesCheckboxFragment extends DialogFragment {
         return null;
     }
 
-    private CharSequence[] setEmployeeNames() {
-       List<String> employeeNames = new ArrayList<String>();
-       for (EmployeeModel employee : mAllEmployees) {
-           employeeNames.add(employee.getName());
-       }
-       return employeeNames.toArray(new CharSequence[employeeNames.size()]);
+    private void setEmployeeChoiceItemsData(List<EmployeeModel> allEmployees) {
+        CharSequence[] employeeNames = new CharSequence[allEmployees.size()];
+        boolean[] isChecked = new boolean[allEmployees.size()];
+        List<EmployeeModel> selectedEmployees = getSelectedEmployeeViewModel().getSelectedEmployees().getValue();
+
+        for (int i = 0; i < allEmployees.size(); i++) {
+            employeeNames[i] = allEmployees.get(i).getName();
+            isChecked[i] = selectedEmployees != null && selectedEmployees.contains(allEmployees.get(i));
+        }
+       mEmployeeListOptions = employeeNames;
+       mEmployeeCheckedOptions = isChecked;
     }
 }

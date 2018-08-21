@@ -40,6 +40,7 @@ import com.pockeyt.cloverpay.utils.DisplayHelpers;
 
 import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
@@ -51,22 +52,25 @@ public class TipsTableFragment extends Fragment implements EmployeesCheckboxFrag
     public static final int EMPLOYEE_SELECTOR_FRAGMENT_CODE = 0;
     public static final String ROLE_ADMIN = "ADMIN";
     public static final String ROLE_MANAGER = "MANAGER";
-    private EmployeeModel mCurrentEmployee;
     private List<TipsModel> mCurrentTips;
     private int mOpenedDatePicker;
     private Menu mMenu;
     private List<EmployeeModel> mEmployees;
+    private List<EmployeeModel> mSelectedEmployees;
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_employee_tips, container, false);
         getCurrentEmployee().observe(this, currentEmployee -> {
-            mCurrentEmployee = currentEmployee;
+            if (!isManager(currentEmployee)) {
+               mSelectedEmployees = new ArrayList<>();
+                mSelectedEmployees.add(currentEmployee);
+            }
             EmployeesViewModel employeesViewModel = ViewModelProviders.of(getActivity()).get(EmployeesViewModel.class);
             employeesViewModel.getEmployees().observe(this, employees -> {
                 mEmployees = employees;
-                getTips(isManager(), mCurrentEmployee, employees).observe(this, tips -> {
+                getTips(mSelectedEmployees, employees).observe(this, tips -> {
                     mCurrentTips = tips;
                     setTipsTable(view);
                     if (mCurrentTips.size() > 0) {
@@ -143,17 +147,16 @@ public class TipsTableFragment extends Fragment implements EmployeesCheckboxFrag
         if ((startDate != null && endDate != null) && startDate.before(endDate)) {
             getMenuItem(mMenu, R.id.action_tips_dates_clear).setVisible(false);
             getMenuItem(mMenu, R.id.action_tips_search).setVisible(true);
-            searchTipsWithDates();
+            tipsViewModel.paramsChangedSearchTransactions(mSelectedEmployees, mEmployees);
         }
 
         if (startDate == null && endDate == null) {
             getMenuItem(mMenu, R.id.action_tips_dates_clear).setVisible(false);
             getMenuItem(mMenu, R.id.action_tips_search).setVisible(true);
             tipsViewModel.setTipTotal(null);
-            tipsViewModel.getEmployeeTransactionsDefault(isManager(), mCurrentEmployee);
+            tipsViewModel.paramsChangedSearchTransactions(mSelectedEmployees, mEmployees);
         }
     }
-
 
     private void setHeaders(View view) {
         ViewTreeObserver viewTreeObserver = view.getViewTreeObserver();
@@ -172,6 +175,12 @@ public class TipsTableFragment extends Fragment implements EmployeesCheckboxFrag
         TableLayout tableLayout = view.findViewById(R.id.tipsTable);
         tableLayout.removeAllViews();
 
+        TipsViewModel tipsViewModel = ViewModelProviders.of(getActivity()).get(TipsViewModel.class);
+        Date startDate = tipsViewModel.getStartDate().getValue();
+        Date endDate = tipsViewModel.getEndDate().getValue();
+        int color = startDate != null && endDate != null ? Color.LTGRAY : Color.TRANSPARENT;
+
+
         for (int i = 0; i < mCurrentTips.size(); i++) {
             TableRow row = new TableRow(getActivity());
             row.setMinimumHeight(DisplayHelpers.dipToPixels(getContext(), 30));
@@ -183,6 +192,7 @@ public class TipsTableFragment extends Fragment implements EmployeesCheckboxFrag
             row.setClickable(true);
             row.setId(i);
             row.setOnClickListener(tableRowOnClickListener);
+            row.setBackgroundColor(color);
 
             tableLayout.addView(addDataToRow(row, mCurrentTips.get(i)), i);
         }
@@ -240,9 +250,9 @@ public class TipsTableFragment extends Fragment implements EmployeesCheckboxFrag
         return currentEmployeeViewModel.getCurrentEmployee();
     }
 
-    private LiveData<List<TipsModel>> getTips(boolean isManager, EmployeeModel employee, List<EmployeeModel> employees) {
+    private LiveData<List<TipsModel>> getTips(List<EmployeeModel> selectedEmployees, List<EmployeeModel> employees) {
         TipsViewModel tipsViewModel = ViewModelProviders.of(getActivity()).get(TipsViewModel.class);
-        return tipsViewModel.getEmployeeTransactions(isManager, employee, employees);
+        return tipsViewModel.getEmployeeTransactions(selectedEmployees, employees);
     }
 
     @Override
@@ -301,7 +311,7 @@ public class TipsTableFragment extends Fragment implements EmployeesCheckboxFrag
 
     private void searchTipsWithDates() {
         TipsViewModel tipsViewModel = ViewModelProviders.of(getActivity()).get(TipsViewModel.class);
-        tipsViewModel.getEmployeeTransactionsWithDates(isManager(), mCurrentEmployee);
+        tipsViewModel.getEmployeeTransactions(mSelectedEmployees, mEmployees);
     }
 
     private void toggleSearchAnimation(boolean shouldStart) {
@@ -374,8 +384,8 @@ public class TipsTableFragment extends Fragment implements EmployeesCheckboxFrag
                 .format(date);
     }
 
-    private boolean isManager() {
-        return mCurrentEmployee.getRole().equals(EmployeeHandler.ROLE_ADMIN) || mCurrentEmployee.getRole().equals(EmployeeHandler.ROLE_MANAGER);
+    private boolean isManager(EmployeeModel currentEmployee) {
+        return currentEmployee.getRole().equals(EmployeeHandler.ROLE_ADMIN) || currentEmployee.getRole().equals(EmployeeHandler.ROLE_MANAGER);
     }
 
     private String formatCurrency(int amount) {
@@ -384,8 +394,11 @@ public class TipsTableFragment extends Fragment implements EmployeesCheckboxFrag
     }
 
     @Override
-    public void onEmployeesCheckboxPositiveClicked(DialogFragment dialogFragment) {
-
+    public void onEmployeesCheckboxPositiveClicked(List<EmployeeModel> selectedEmployees) {
+        TipsViewModel tipsViewModel = ViewModelProviders.of(getActivity()).get(TipsViewModel.class);
+        mSelectedEmployees = selectedEmployees;
+        getMenuItem(mMenu, R.id.action_tips_search).setVisible(true);
+        tipsViewModel.paramsChangedSearchTransactions(mSelectedEmployees, mEmployees);
     }
 
     @Override
@@ -395,6 +408,9 @@ public class TipsTableFragment extends Fragment implements EmployeesCheckboxFrag
 
     @Override
     public void onEmployeesCheckboxNeutralClicked(DialogFragment dialogFragment) {
-
+        TipsViewModel tipsViewModel = ViewModelProviders.of(getActivity()).get(TipsViewModel.class);
+        mSelectedEmployees = null;
+        getMenuItem(mMenu, R.id.action_tips_search).setVisible(true);
+        tipsViewModel.paramsChangedSearchTransactions(mSelectedEmployees, mEmployees);
     }
 }

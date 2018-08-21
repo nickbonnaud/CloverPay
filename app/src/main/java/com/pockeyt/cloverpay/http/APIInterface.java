@@ -8,6 +8,9 @@ import com.pockeyt.cloverpay.http.retrofitModels.TipsList;
 
 import org.json.JSONObject;
 
+import java.util.List;
+import java.util.Map;
+
 import io.reactivex.Observable;
 import retrofit2.Response;
 import retrofit2.http.Field;
@@ -15,6 +18,7 @@ import retrofit2.http.FormUrlEncoded;
 import retrofit2.http.GET;
 import retrofit2.http.POST;
 import retrofit2.http.Query;
+import retrofit2.http.QueryMap;
 
 public interface APIInterface {
 
@@ -29,17 +33,8 @@ public interface APIInterface {
     @GET("transaction")
     Observable<Response<PockeytTransaction>> doGetPockeytTransaction(@Query("clover") String orderId);
 
-    @GET("employees")
-    Observable<Response<EmployeeList>> doGetEmployees();
-
     @GET("tips")
-    Observable<Response<TipsList>> doGetTipsAll(@Query("allTips") int defaultAll);
-    @GET("tips")
-    Observable<Response<TipsList>> doGetTipsEmployee(@Query("employeeTips") String employeeId);
-    @GET("tips")
-    Observable<Response<TipsList>> doGetTipsAllWithDates(@Query("allTips") int defaultAll, @Query("startTime") String startTime, @Query("endTime") String endTime);
-    @GET("tips")
-    Observable<Response<TipsList>> doGetTipsEmployeeWithDates(@Query("employeeTips") String employeeId, @Query("startTime") String startTime, @Query("endTime") String endTime);
+    Observable<Response<TipsList>> doGetTips(@QueryMap Map<String, String> options, @Query("employeeTips[]") List<String> employeeTips);
 
 
 
