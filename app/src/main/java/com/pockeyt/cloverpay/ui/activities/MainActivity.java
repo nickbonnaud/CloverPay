@@ -6,6 +6,7 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.res.Configuration;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
@@ -116,6 +117,7 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
         connectToPusher(business);
     }
 
+
     private void getCloverIntent() {
         Intent cloverTenderIntent = getIntent();
         if (cloverTenderIntent != null && cloverTenderIntent.getAction().equals("clover.intent.action.MERCHANT_TENDER")) {
@@ -191,44 +193,37 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
     }
 
     private void setCustomerGridPagerFragment() {
-        CustomerGridPagerFragment savedFragment = (CustomerGridPagerFragment) getSupportFragmentManager().findFragmentByTag(CUSTOMER_GRID_PAGER_FRAGMENT);
-        FragmentManager fragmentManager = getSupportFragmentManager();
-        FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
-
-        if (savedFragment == null) {
+        CustomerGridPagerFragment savedFragmentCustomerGridPager = (CustomerGridPagerFragment) getSupportFragmentManager().findFragmentByTag(CUSTOMER_GRID_PAGER_FRAGMENT);
+        if (savedFragmentCustomerGridPager == null) {
             CustomerGridPagerFragment customerGridPagerFragment = new CustomerGridPagerFragment();
-            if (fragmentManager.findFragmentByTag(CUSTOMER_LIST_FRAGMENT) != null || fragmentManager.findFragmentByTag(CUSTOMER_VIEWPAGER_FRAGMENT) != null) {
-                fragmentTransaction.replace(R.id.placeHolder, customerGridPagerFragment, CUSTOMER_GRID_PAGER_FRAGMENT);
-            } else {
-                fragmentTransaction.add(R.id.placeHolder, customerGridPagerFragment, CUSTOMER_GRID_PAGER_FRAGMENT);
-            }
-
+            getSupportFragmentManager().beginTransaction().replace(R.id.placeHolder, customerGridPagerFragment, CUSTOMER_GRID_PAGER_FRAGMENT).commit();
         } else {
-            fragmentTransaction.replace(R.id.placeHolder, savedFragment, CUSTOMER_GRID_PAGER_FRAGMENT);
+            getSupportFragmentManager().beginTransaction().replace(R.id.placeHolder, savedFragmentCustomerGridPager, CUSTOMER_GRID_PAGER_FRAGMENT).commit();
         }
-        fragmentManager.popBackStack(null, FragmentManager.POP_BACK_STACK_INCLUSIVE);
-        fragmentTransaction.commit();
     }
 
     private void setCustomerListFragment() {
-        CustomerListFragment savedFragment = (CustomerListFragment) getSupportFragmentManager().findFragmentByTag(CUSTOMER_LIST_FRAGMENT);
-        FragmentManager fragmentManager = getSupportFragmentManager();
-        FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
-        Fragment customerGridPagerFragment = fragmentManager.findFragmentByTag(CUSTOMER_GRID_PAGER_FRAGMENT);
-        if (savedFragment == null) {
+        CustomerListFragment savedFragmentCustomerList = (CustomerListFragment) getSupportFragmentManager().findFragmentByTag(CUSTOMER_LIST_FRAGMENT);
+        if (savedFragmentCustomerList == null) {
             CustomerListFragment customerListFragment = new CustomerListFragment();
-            if (customerGridPagerFragment != null) {
-                fragmentTransaction.replace(R.id.placeHolder, customerListFragment, CUSTOMER_LIST_FRAGMENT);
-            } else {
-                fragmentTransaction.add(R.id.placeHolder, customerListFragment, CUSTOMER_LIST_FRAGMENT);
-            }
-
-        } else if (customerGridPagerFragment != null) {
-            Log.d(TAG, "CUSTOMER GRIDPAGER FRAGMENT IS NOT NULL");
-            fragmentTransaction.replace(R.id.placeHolder, savedFragment, CUSTOMER_LIST_FRAGMENT);
-            fragmentManager.popBackStack(null, FragmentManager.POP_BACK_STACK_INCLUSIVE);
+            getSupportFragmentManager().beginTransaction().replace(R.id.placeHolder, customerListFragment, CUSTOMER_LIST_FRAGMENT).commit();
+        } else {
+            getSupportFragmentManager().beginTransaction().replace(R.id.placeHolder, savedFragmentCustomerList, CUSTOMER_LIST_FRAGMENT).commit();
         }
-        fragmentTransaction.commit();
+    }
+
+
+    private void addTipsFragment() {
+        Log.d(TAG, "Inside add tips fragment");
+        FragmentManager fragmentManager = getSupportFragmentManager();
+        Fragment tipsTableFragment = fragmentManager.findFragmentByTag(TIPS_TRACKER_FRAGMENT);
+        if (tipsTableFragment != null) {
+            fragmentManager.popBackStackImmediate();
+            Log.d(TAG, "not null");
+            FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
+            fragmentTransaction.replace(R.id.placeHolder, tipsTableFragment, TIPS_TRACKER_FRAGMENT);
+            fragmentTransaction.commitNow();
+        }
     }
 
     @Override
@@ -333,6 +328,7 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
             fragmentTransaction.commit();
             return true;
         } else if(item.getItemId() == android.R.id.home) {
+            Log.d(TAG, "Back clicked");
             resetCustomer();
             if (fragmentManager.getBackStackEntryCount() == 0) {
                 if (mDidStartFromRegister) {
@@ -342,12 +338,37 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
                 }
 
             } else {
+                Log.d(TAG, "back stack count greater than 0 " + fragmentManager.getBackStackEntryCount());
                 updateMenuBar(fragmentManager);
                 fragmentManager.popBackStackImmediate();
+                checkSwapFragments();
             }
             return super.onOptionsItemSelected(item);
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    private void checkSwapFragments() {
+        CustomerGridPagerFragment customerGridPagerFragment = (CustomerGridPagerFragment) getSupportFragmentManager().findFragmentByTag(CUSTOMER_GRID_PAGER_FRAGMENT);
+        CustomerListFragment customerListFragment = (CustomerListFragment) getSupportFragmentManager().findFragmentByTag(CUSTOMER_LIST_FRAGMENT);
+        CustomerViewPagerFragment customerViewPagerFragment = (CustomerViewPagerFragment) getSupportFragmentManager().findFragmentByTag(CUSTOMER_VIEWPAGER_FRAGMENT);
+        mIsTablet = getResources().getBoolean(R.bool.is_tablet);
+
+        if (customerGridPagerFragment != null && customerGridPagerFragment.isVisible()) {
+            if (!mIsTablet) {
+                CustomerListFragment instantiatedListFragment = customerListFragment == null ? new CustomerListFragment() : customerListFragment;
+                getSupportFragmentManager().beginTransaction().replace(R.id.placeHolder, instantiatedListFragment, CUSTOMER_LIST_FRAGMENT).commit();
+            }
+        }
+
+        if ((customerListFragment != null && customerListFragment.isVisible()) || (customerViewPagerFragment != null && customerViewPagerFragment.isVisible())) {
+            if (mIsTablet) {
+                getSupportFragmentManager().popBackStack();
+                CustomerGridPagerFragment instantiatedGridPagerFragment = customerGridPagerFragment == null ? new CustomerGridPagerFragment() : customerGridPagerFragment;
+                getSupportFragmentManager().beginTransaction().replace(R.id.placeHolder, instantiatedGridPagerFragment, CUSTOMER_GRID_PAGER_FRAGMENT).commit();
+            }
+        }
+
     }
 
     private void updateMenuBar(FragmentManager fragmentManager) {
@@ -390,6 +411,19 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
         if (fragment != null && fragment.isVisible()) {
             SelectedCustomerViewModel selectedCustomerViewModel = ViewModelProviders.of(this).get(SelectedCustomerViewModel.class);
             selectedCustomerViewModel.resetSelectedCustomer();
+        }
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        if (getSupportFragmentManager().findFragmentByTag(TIPS_TRACKER_FRAGMENT) == null || !getSupportFragmentManager().findFragmentByTag(TIPS_TRACKER_FRAGMENT).isVisible()) {
+            mIsTablet = getResources().getBoolean(R.bool.is_tablet);
+            if (!mIsTablet) {
+                setCustomerListFragment();
+            } else {
+                setCustomerGridPagerFragment();
+            }
         }
     }
 }

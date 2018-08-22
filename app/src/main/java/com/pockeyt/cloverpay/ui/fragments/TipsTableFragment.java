@@ -165,7 +165,9 @@ public class TipsTableFragment extends Fragment implements EmployeesCheckboxFrag
                 @Override
                 public void onGlobalLayout() {
                     formatHeaders(view);
-                    viewTreeObserver.removeOnGlobalLayoutListener(this);
+                    if (viewTreeObserver.isAlive()) {
+                        viewTreeObserver.removeOnGlobalLayoutListener(this);
+                    }
                 }
             });
         }
