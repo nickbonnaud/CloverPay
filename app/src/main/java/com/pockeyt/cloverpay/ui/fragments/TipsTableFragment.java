@@ -23,10 +23,12 @@ import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 import android.view.animation.Animation;
 import android.view.animation.AnimationUtils;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TableLayout;
 import android.widget.TableRow;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.kunzisoft.switchdatetime.SwitchDateTimeDialogFragment;
 import com.pockeyt.cloverpay.R;
@@ -35,6 +37,7 @@ import com.pockeyt.cloverpay.models.EmployeeModel;
 import com.pockeyt.cloverpay.models.TipsModel;
 import com.pockeyt.cloverpay.ui.viewModels.CurrentEmployeeViewModel;
 import com.pockeyt.cloverpay.ui.viewModels.EmployeesViewModel;
+import com.pockeyt.cloverpay.ui.viewModels.SelectedEmployeesViewModel;
 import com.pockeyt.cloverpay.ui.viewModels.TipsViewModel;
 import com.pockeyt.cloverpay.utils.DisplayHelpers;
 
@@ -57,20 +60,38 @@ public class TipsTableFragment extends Fragment implements EmployeesCheckboxFrag
     private Menu mMenu;
     private List<EmployeeModel> mEmployees;
     private List<EmployeeModel> mSelectedEmployees;
+    private EmployeeModel mCurrentEmployee;
+
+    private ImageView mSpinnerImageView;
+    private Animation mAnimationRotation;
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_employee_tips, container, false);
         getCurrentEmployee().observe(this, currentEmployee -> {
-            if (!isManager(currentEmployee)) {
-               mSelectedEmployees = new ArrayList<>();
-                mSelectedEmployees.add(currentEmployee);
+            Log.d(TAG, "Get current Employee observer");
+            if (didEmployeeChange(currentEmployee)) {
+                TipsViewModel tipsViewModel = ViewModelProviders.of(getActivity()).get(TipsViewModel.class);
+                tipsViewModel.resetParams();
+                tipsViewModel.resetDates();
+                SelectedEmployeesViewModel selectedEmployeesViewModel = ViewModelProviders.of(getActivity()).get(SelectedEmployeesViewModel.class);
+                selectedEmployeesViewModel.setSelectedEmployees(null);
+
+                mSelectedEmployees = new ArrayList<>();
+                if (!isManager(currentEmployee)) {
+                    mSelectedEmployees.add(currentEmployee);
+                }
             }
+            mCurrentEmployee = currentEmployee;
             EmployeesViewModel employeesViewModel = ViewModelProviders.of(getActivity()).get(EmployeesViewModel.class);
             employeesViewModel.getEmployees().observe(this, employees -> {
+                Log.d(TAG, "5");
                 mEmployees = employees;
-                getTips(mSelectedEmployees, employees).observe(this, tips -> {
+
+                TipsViewModel tipsViewModel = ViewModelProviders.of(getActivity()).get(TipsViewModel.class);
+                tipsViewModel.getEmployeeTransactions(mSelectedEmployees, employees).observe(this, tips -> {
+                    Log.d(TAG, "6");
                     mCurrentTips = tips;
                     setTipsTable(view);
                     if (mCurrentTips.size() > 0) {
@@ -82,7 +103,12 @@ public class TipsTableFragment extends Fragment implements EmployeesCheckboxFrag
 
         setHasOptionsMenu(true);
         setTipTotalTitle();
+        setLoadMoreData(view);
         return view;
+    }
+
+    private boolean didEmployeeChange(EmployeeModel currentEmployee) {
+        return mCurrentEmployee == null || !mCurrentEmployee.getCloverId().equals(currentEmployee.getCloverId());
     }
 
     private void setTipTotalTitle() {
@@ -102,8 +128,9 @@ public class TipsTableFragment extends Fragment implements EmployeesCheckboxFrag
         TipsViewModel tipsViewModel = ViewModelProviders.of(getActivity()).get(TipsViewModel.class);
         tipsViewModel.getIsLoading().observe(this, shouldStart -> {
             toggleSearchAnimation(shouldStart);
+
             if (!shouldStart) {
-                if (tipsViewModel.getStartDate().getValue() == null && tipsViewModel.getEndDate().getValue() == null) {
+                if ((tipsViewModel.getStartDate().getValue() == null && tipsViewModel.getEndDate().getValue() == null) || (tipsViewModel.getStartDate().getValue().getDate() == null && tipsViewModel.getEndDate().getValue().getDate() == null)) {
                     getMenuItem(mMenu, R.id.action_tips_dates_clear).setVisible(false);
                 } else {
                     getMenuItem(mMenu, R.id.action_tips_dates_clear).setVisible(true);
@@ -117,9 +144,9 @@ public class TipsTableFragment extends Fragment implements EmployeesCheckboxFrag
 
         tipsViewModel.getStartDate().observe(this, startDate -> {
             String title;
-            if (startDate != null) {
+            if (startDate != null && startDate.getDate() != null) {
                 getMenuItem(mMenu, R.id.action_tips_dates_clear).setVisible(true);
-                title = formatDisplayDate(startDate);
+                title = formatDisplayDate(startDate.getDate());
             } else {
                 title = getString(R.string.tips_start_date);
             }
@@ -129,9 +156,9 @@ public class TipsTableFragment extends Fragment implements EmployeesCheckboxFrag
 
         tipsViewModel.getEndDate().observe(this, endDate -> {
             String title;
-            if (endDate != null) {
+            if (endDate != null && endDate.getDate() != null) {
                 getMenuItem(mMenu, R.id.action_tips_dates_clear).setVisible(true);
-                title = formatDisplayDate(endDate);
+                title = formatDisplayDate(endDate.getDate());
             } else {
                 title = getString(R.string.tips_end_date);
             }
@@ -142,19 +169,20 @@ public class TipsTableFragment extends Fragment implements EmployeesCheckboxFrag
 
     private void doSearch() {
         TipsViewModel tipsViewModel = ViewModelProviders.of(getActivity()).get(TipsViewModel.class);
-        Date startDate = tipsViewModel.getStartDate().getValue();
-        Date endDate = tipsViewModel.getEndDate().getValue();
-        if ((startDate != null && endDate != null) && startDate.before(endDate)) {
+        TipsViewModel.FetchableDate startDate = tipsViewModel.getStartDate().getValue();
+        TipsViewModel.FetchableDate endDate = tipsViewModel.getEndDate().getValue();
+
+        if ((startDate != null && endDate != null) && (startDate.getDate() != null && endDate.getDate() != null) && startDate.getDate().before(endDate.getDate())) {
             getMenuItem(mMenu, R.id.action_tips_dates_clear).setVisible(false);
-            getMenuItem(mMenu, R.id.action_tips_search).setVisible(true);
             tipsViewModel.paramsChangedSearchTransactions(mSelectedEmployees, mEmployees);
         }
 
-        if (startDate == null && endDate == null) {
+        if ((startDate != null && endDate != null) && (startDate.getDate() == null && endDate.getDate() == null)) {
             getMenuItem(mMenu, R.id.action_tips_dates_clear).setVisible(false);
-            getMenuItem(mMenu, R.id.action_tips_search).setVisible(true);
             tipsViewModel.setTipTotal(null);
-            tipsViewModel.paramsChangedSearchTransactions(mSelectedEmployees, mEmployees);
+            if (startDate.isShouldFetch() && endDate.isShouldFetch()) {
+                tipsViewModel.paramsChangedSearchTransactions(mSelectedEmployees, mEmployees);
+            }
         }
     }
 
@@ -178,9 +206,9 @@ public class TipsTableFragment extends Fragment implements EmployeesCheckboxFrag
         tableLayout.removeAllViews();
 
         TipsViewModel tipsViewModel = ViewModelProviders.of(getActivity()).get(TipsViewModel.class);
-        Date startDate = tipsViewModel.getStartDate().getValue();
-        Date endDate = tipsViewModel.getEndDate().getValue();
-        int color = startDate != null && endDate != null ? Color.LTGRAY : Color.TRANSPARENT;
+        TipsViewModel.FetchableDate startDate = tipsViewModel.getStartDate().getValue();
+        TipsViewModel.FetchableDate endDate = tipsViewModel.getEndDate().getValue();
+        int color = (startDate != null && startDate.getDate() != null) && (endDate != null && endDate.getDate() != null) ? Color.LTGRAY : Color.TRANSPARENT;
 
 
         for (int i = 0; i < mCurrentTips.size(); i++) {
@@ -252,29 +280,17 @@ public class TipsTableFragment extends Fragment implements EmployeesCheckboxFrag
         return currentEmployeeViewModel.getCurrentEmployee();
     }
 
-    private LiveData<List<TipsModel>> getTips(List<EmployeeModel> selectedEmployees, List<EmployeeModel> employees) {
-        TipsViewModel tipsViewModel = ViewModelProviders.of(getActivity()).get(TipsViewModel.class);
-        return tipsViewModel.getEmployeeTransactions(selectedEmployees, employees);
-    }
-
     @Override
     public void onPrepareOptionsMenu(Menu menu) {
+        Log.d(TAG, "On prepare options menu");
         mMenu = menu;
         getMenuItem(menu, R.id.action_tips).setVisible(false);
         getMenuItem(menu, R.id.action_date_picker_start).setVisible(true);
         getMenuItem(menu, R.id.action_date_picker_end).setVisible(true);
+        getMenuItem(menu, R.id.action_employee_filter).setVisible(true);
 
         setOptionsTitles();
         handleLoadingApiData();
-        showEmployeeFilterButton(menu);
-    }
-
-    private void showEmployeeFilterButton(Menu menu) {
-        getCurrentEmployee().observe(this, currentEmployee -> {
-            if (currentEmployee.getRole().equals(ROLE_MANAGER) || currentEmployee.getRole().equals(ROLE_ADMIN)) {
-                getMenuItem(menu, R.id.action_employee_filter).setVisible(true);
-            }
-        });
     }
 
     private MenuItem getMenuItem(Menu menu, int actionId) {
@@ -294,15 +310,19 @@ public class TipsTableFragment extends Fragment implements EmployeesCheckboxFrag
     }
 
     private void showEmployeeFilterDialog() {
-        EmployeesCheckboxFragment fragment = new EmployeesCheckboxFragment().newInstance(mEmployees);
-        fragment.setTargetFragment(this, EMPLOYEE_SELECTOR_FRAGMENT_CODE);
-        fragment.show(getActivity().getSupportFragmentManager(), EMPLOYEE_SELECTOR_FRAGMENT);
+        if (isManager(mCurrentEmployee)) {
+            EmployeesCheckboxFragment fragment = new EmployeesCheckboxFragment().newInstance(mEmployees);
+            fragment.setTargetFragment(this, EMPLOYEE_SELECTOR_FRAGMENT_CODE);
+            fragment.show(getActivity().getSupportFragmentManager(), EMPLOYEE_SELECTOR_FRAGMENT);
+        } else {
+            Toast.makeText(getContext(), "Must be Admin/Manager to filter transactions by employee.", Toast.LENGTH_LONG).show();
+        }
     }
 
     private boolean clearDatePicker() {
         TipsViewModel tipsViewModel = ViewModelProviders.of(getActivity()).get(TipsViewModel.class);
-        tipsViewModel.setEndDate(null);
-        tipsViewModel.setStartDate(null);
+        tipsViewModel.setEndDate(true, null);
+        tipsViewModel.setStartDate(true, null);
         return true;
     }
 
@@ -311,27 +331,25 @@ public class TipsTableFragment extends Fragment implements EmployeesCheckboxFrag
         return true;
     }
 
-    private void searchTipsWithDates() {
-        TipsViewModel tipsViewModel = ViewModelProviders.of(getActivity()).get(TipsViewModel.class);
-        tipsViewModel.getEmployeeTransactions(mSelectedEmployees, mEmployees);
-    }
 
     private void toggleSearchAnimation(boolean shouldStart) {
-        MenuItem searchButton = mMenu.findItem(R.id.action_tips_search);
+        MenuItem searchSpinner = mMenu.findItem(R.id.action_tips_search);
         if (shouldStart) {
-            LayoutInflater inflater = (LayoutInflater) getActivity().getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-            ImageView iv = (ImageView) inflater.inflate(R.layout.iv_refresh, null);
-            Animation rotation = AnimationUtils.loadAnimation(getContext(), R.anim.rotate_refresh);
-            rotation.setRepeatCount(Animation.INFINITE);
-            iv.startAnimation(rotation);
-            searchButton.setActionView(iv);
-        } else {
-            if (searchButton.getActionView() != null) {
-                searchButton.getActionView().clearAnimation();
-                searchButton.setActionView(null);
+            if (mSpinnerImageView == null) {
+                LayoutInflater inflater = (LayoutInflater) getActivity().getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+                mSpinnerImageView = (ImageView) inflater.inflate(R.layout.iv_refresh, null);
+                mAnimationRotation = AnimationUtils.loadAnimation(getContext(), R.anim.rotate_refresh);
+                mAnimationRotation.setRepeatCount(Animation.INFINITE);
             }
-            mMenu.findItem(R.id.action_tips_search).setVisible(false);
+            mSpinnerImageView.startAnimation(mAnimationRotation);
+            searchSpinner.setActionView(mSpinnerImageView);
+        } else {
+            if (searchSpinner.getActionView() != null) {
+                searchSpinner.getActionView().clearAnimation();
+                searchSpinner.setActionView(null);
+            }
         }
+        searchSpinner.setVisible(shouldStart);
     }
 
     private void showDatePicker(int itemId) {
@@ -357,9 +375,9 @@ public class TipsTableFragment extends Fragment implements EmployeesCheckboxFrag
             public void onNeutralButtonClick(Date date) {
                 TipsViewModel tipsViewModel = ViewModelProviders.of(getActivity()).get(TipsViewModel.class);
                 if (mOpenedDatePicker == R.id.action_date_picker_start) {
-                    tipsViewModel.setStartDate(null);
+                    tipsViewModel.setStartDate(true, null);
                 } else {
-                    tipsViewModel.setEndDate(null);
+                    tipsViewModel.setEndDate(true, null);
                 }
             }
 
@@ -367,9 +385,9 @@ public class TipsTableFragment extends Fragment implements EmployeesCheckboxFrag
             public void onPositiveButtonClick(Date date) {
                 TipsViewModel tipsViewModel = ViewModelProviders.of(getActivity()).get(TipsViewModel.class);
                 if (mOpenedDatePicker == R.id.action_date_picker_start) {
-                    tipsViewModel.setStartDate(date);
+                    tipsViewModel.setStartDate(true, date);
                 } else {
-                    tipsViewModel.setEndDate(date);
+                    tipsViewModel.setEndDate(true, date);
                 }
             }
 
@@ -395,11 +413,29 @@ public class TipsTableFragment extends Fragment implements EmployeesCheckboxFrag
         return n.format(amount / 100.0);
     }
 
+    private void setLoadMoreData(View view) {
+        TipsViewModel tipsViewModel = ViewModelProviders.of(getActivity()).get(TipsViewModel.class);
+        Button loadMoreButton = view.findViewById(R.id.loadMoreButton);
+        loadMoreButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                loadMoreButton.setVisibility(View.GONE);
+                tipsViewModel.fetchTransactions(mSelectedEmployees);
+            }
+        });
+        tipsViewModel.getIsLoading().observe(this, isLoading -> {
+            loadMoreButton.setClickable(!isLoading);
+        });
+        tipsViewModel.getHasMore().observe(this, hasMore -> {
+            loadMoreButton.setVisibility(hasMore ? View.VISIBLE : View.GONE);
+        });
+    }
+
+
     @Override
     public void onEmployeesCheckboxPositiveClicked(List<EmployeeModel> selectedEmployees) {
         TipsViewModel tipsViewModel = ViewModelProviders.of(getActivity()).get(TipsViewModel.class);
         mSelectedEmployees = selectedEmployees;
-        getMenuItem(mMenu, R.id.action_tips_search).setVisible(true);
         tipsViewModel.paramsChangedSearchTransactions(mSelectedEmployees, mEmployees);
     }
 
@@ -412,7 +448,13 @@ public class TipsTableFragment extends Fragment implements EmployeesCheckboxFrag
     public void onEmployeesCheckboxNeutralClicked(DialogFragment dialogFragment) {
         TipsViewModel tipsViewModel = ViewModelProviders.of(getActivity()).get(TipsViewModel.class);
         mSelectedEmployees = null;
-        getMenuItem(mMenu, R.id.action_tips_search).setVisible(true);
         tipsViewModel.paramsChangedSearchTransactions(mSelectedEmployees, mEmployees);
+    }
+
+    @Override
+    public void onResume() {
+        CurrentEmployeeViewModel currentEmployeeViewModel = ViewModelProviders.of(getActivity()).get(CurrentEmployeeViewModel.class);
+        currentEmployeeViewModel.fetchCurrentEmployee();
+        super.onResume();
     }
 }

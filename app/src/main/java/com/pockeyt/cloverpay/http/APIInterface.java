@@ -34,7 +34,7 @@ public interface APIInterface {
     Observable<Response<PockeytTransaction>> doGetPockeytTransaction(@Query("clover") String orderId);
 
     @GET("tips")
-    Observable<Response<TipsList>> doGetTips(@QueryMap Map<String, String> options, @Query("employeeTips[]") List<String> employeeTips);
+    Observable<Response<TipsList>> doGetTips(@QueryMap Map<String, String> options, @Query("employeeTips[]") List<String> employeeTips, @Query("page") String page);
 
 
 

@@ -51,7 +51,7 @@ import java.util.List;
 import io.reactivex.disposables.CompositeDisposable;
 import io.reactivex.subjects.PublishSubject;
 
-public class MainActivity extends AppCompatActivity implements Interfaces.OnListCustomerSelectedInterface, DialogInterface.OnDismissListener, EmployeeConnector.OnActiveEmployeeChangedListener {
+public class MainActivity extends AppCompatActivity implements Interfaces.OnListCustomerSelectedInterface, DialogInterface.OnDismissListener {
     public static final String CUSTOMER_LIST_FRAGMENT = "customer_list_fragment";
     public static final String CUSTOMER_VIEWPAGER_FRAGMENT = "customer_viewpager_fragment";
     public static final String CUSTOMER_GRID_PAGER_FRAGMENT = "customer_grid_pager_fragment";
@@ -82,8 +82,8 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
         mIsTablet = getResources().getBoolean(R.bool.is_tablet);
         checkShouldShowLogin();
 
-        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         getSupportActionBar().setDisplayShowTitleEnabled(false);
+        setBackStackChangedListener();
 
         setResult(RESULT_CANCELED);
     }
@@ -121,11 +121,11 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
     private void getCloverIntent() {
         Intent cloverTenderIntent = getIntent();
         if (cloverTenderIntent != null && cloverTenderIntent.getAction().equals("clover.intent.action.MERCHANT_TENDER")) {
-            Log.d(TAG, "there is clover intent");
             setSelectedCustomerFromIntent(cloverTenderIntent);
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
             mDidStartFromRegister = true;
         } else {
-            Log.d(TAG, "there is no clover intent");
+            getSupportActionBar().setDisplayHomeAsUpEnabled(false);
             mDidStartFromRegister = false;
         }
     }
@@ -212,20 +212,6 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
         }
     }
 
-
-    private void addTipsFragment() {
-        Log.d(TAG, "Inside add tips fragment");
-        FragmentManager fragmentManager = getSupportFragmentManager();
-        Fragment tipsTableFragment = fragmentManager.findFragmentByTag(TIPS_TRACKER_FRAGMENT);
-        if (tipsTableFragment != null) {
-            fragmentManager.popBackStackImmediate();
-            Log.d(TAG, "not null");
-            FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
-            fragmentTransaction.replace(R.id.placeHolder, tipsTableFragment, TIPS_TRACKER_FRAGMENT);
-            fragmentTransaction.commitNow();
-        }
-    }
-
     @Override
     public void onListCustomerSelected(CustomerModel customer) {
         SelectedCustomerViewModel selectedCustomerViewModel = ViewModelProviders.of(this).get(SelectedCustomerViewModel.class);
@@ -247,11 +233,12 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
         startService(intent);
     }
 
-    @Override
-    public void onActiveEmployeeChanged(Employee employee) {
-        CurrentEmployeeViewModel currentEmployeeViewModel = ViewModelProviders.of(this).get(CurrentEmployeeViewModel.class);
-        currentEmployeeViewModel.setCurrentEmployee(new EmployeeModel(employee.getId(), employee.getName(), employee.getRole().toString()));
-    }
+//    @Override
+//    public void onActiveEmployeeChanged(Employee employee) {
+//        Log.d(TAG, "On active employee changed");
+//        CurrentEmployeeViewModel currentEmployeeViewModel = ViewModelProviders.of(this).get(CurrentEmployeeViewModel.class);
+//        currentEmployeeViewModel.setCurrentEmployee(new EmployeeModel(employee.getId(), employee.getName(), employee.getRole().toString()));
+//    }
 
     public class NotificationBroadcastReceiver extends BroadcastReceiver {
 
@@ -386,8 +373,7 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
             filterButton.setVisible(false);
 
             TipsViewModel tipsViewModel = ViewModelProviders.of(this).get(TipsViewModel.class);
-            tipsViewModel.setEndDate(null);
-            tipsViewModel.setStartDate(null);
+            tipsViewModel.resetDates();
         }
     }
 
@@ -425,5 +411,14 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
                 setCustomerGridPagerFragment();
             }
         }
+    }
+
+    private void setBackStackChangedListener() {
+        getSupportFragmentManager().addOnBackStackChangedListener(new FragmentManager.OnBackStackChangedListener() {
+            @Override
+            public void onBackStackChanged() {
+                getSupportActionBar().setDisplayHomeAsUpEnabled(getSupportFragmentManager().getBackStackEntryCount() > 0 || mDidStartFromRegister);
+            }
+        });
     }
 }

@@ -4,6 +4,7 @@ import android.arch.lifecycle.LiveData;
 import android.arch.lifecycle.MutableLiveData;
 import android.arch.lifecycle.ViewModel;
 import android.content.Context;
+import android.util.Log;
 
 import com.clover.sdk.v1.ResultStatus;
 import com.clover.sdk.v3.employees.Employee;
@@ -13,6 +14,7 @@ import com.pockeyt.cloverpay.models.EmployeeModel;
 import com.pockeyt.cloverpay.utils.CloverEmployeeConnector;
 
 public class CurrentEmployeeViewModel extends ViewModel {
+    public static final String TAG = CurrentEmployeeViewModel.class.getSimpleName();
     private MutableLiveData<EmployeeModel> currentEmployee;
     private EmployeeConnector mEmployeeConnector;
 
@@ -26,7 +28,7 @@ public class CurrentEmployeeViewModel extends ViewModel {
     }
 
 
-    private void fetchCurrentEmployee() {
+    public void fetchCurrentEmployee() {
         connectEmployeeConnector();
         mEmployeeConnector.getEmployee(new EmployeeConnector.EmployeeCallback<Employee>() {
             @Override
@@ -46,7 +48,17 @@ public class CurrentEmployeeViewModel extends ViewModel {
         }
     }
 
-    public void setCurrentEmployee(EmployeeModel currentEmployee) {
-        this.currentEmployee.setValue(currentEmployee);
+    private void setCurrentEmployee(EmployeeModel currentEmployee) {
+        if (this.currentEmployee == null || this.currentEmployee.getValue() == null) {
+            Log.d(TAG, "1");
+            if (this.currentEmployee == null) {
+                Log.d(TAG, "2");
+                this.currentEmployee = new MutableLiveData<EmployeeModel>();
+            }
+            this.currentEmployee.setValue(currentEmployee);
+        } else if (!this.currentEmployee.getValue().getCloverId().equals(currentEmployee.getCloverId())) {
+            Log.d(TAG, "3");
+            this.currentEmployee.setValue(currentEmployee);
+        }
     }
 }

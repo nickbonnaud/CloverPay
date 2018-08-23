@@ -32,51 +32,45 @@ public class TipsViewModel extends ViewModel {
     private MutableLiveData<List<TipsModel>> transactions;
     private CompositeDisposable mCompositeDisposable = new CompositeDisposable();
     private List<EmployeeModel> mEmployees;
-    private List<EmployeeModel> mSelectedEmployees;
 
-    private MutableLiveData<Date> startDate;
-    private MutableLiveData<Date> endDate;
+    private MutableLiveData<FetchableDate> startDate;
+    private MutableLiveData<FetchableDate> endDate;
     private MutableLiveData<Boolean> isLoading;
 
     private MutableLiveData<Integer> tipTotal;
     private MutableLiveData<List<TipsModel>> selectedTransactionsForTips;
 
+    private MutableLiveData<Boolean> hasMore;
+    private int nextPage;
+
     public LiveData<List<TipsModel>> getEmployeeTransactions(List<EmployeeModel> selectedEmployees, List<EmployeeModel> employees) {
+        Log.d(TAG, "get employee transactions");
         this.mEmployees = employees;
-        if (this.transactions == null || selectedEmployeesChange(selectedEmployees)) {
-            this.mSelectedEmployees = selectedEmployees;
+        if (this.transactions == null) {
             this.transactions = new MutableLiveData<List<TipsModel>>();
-            fetchTransactions(selectedEmployees);
         }
+        fetchTransactions(selectedEmployees);
         return this.transactions;
     }
 
     public void paramsChangedSearchTransactions(List<EmployeeModel> selectedEmployees, List<EmployeeModel> employees) {
+        Log.d(TAG, "Params changed");
+        resetParams();
         this.mEmployees = employees;
-        this.mSelectedEmployees = selectedEmployees;
         fetchTransactions(selectedEmployees);
     }
 
+    public void resetParams() {
+        Log.d(TAG, "Reset Params");
+        this.nextPage = -1;
+        setEmployeeTransactions(new ArrayList<>());
+        this.hasMore.setValue(false);
+        setSelectedTransactionsForTips(new ArrayList<>());
+    }
 
-    private boolean selectedEmployeesChange(List<EmployeeModel> selectedEmployees) {
-        if (mSelectedEmployees == null && selectedEmployees == null) {
-            return false;
-        } else if (mSelectedEmployees == null) {
-            return true;
-        } else if (selectedEmployees == null) {
-            return true;
-        } else {
-            if (mSelectedEmployees.size() != selectedEmployees.size()) {
-                return true;
-            } else {
-                for (int i = 0; i < mSelectedEmployees.size(); i++) {
-                    if (!mSelectedEmployees.get(i).getCloverId().equals(selectedEmployees.get(i).getCloverId())) {
-                        return true;
-                    }
-                }
-                return false;
-            }
-        }
+    public void resetDates() {
+        this.setStartDate(false, null);
+        this.setEndDate(false, null);
     }
 
 
@@ -91,50 +85,61 @@ public class TipsViewModel extends ViewModel {
         return this.isLoading;
     }
 
-    public void setStartDate(Date date) {
+    public void setStartDate(boolean shouldFetch, Date date) {
         if (this.startDate == null) {
-            this.startDate = new MutableLiveData<Date>();
+            this.startDate = new MutableLiveData<>();
         }
-        this.startDate.setValue(date);
+
+        this.startDate.setValue(new FetchableDate(shouldFetch, date));
     }
 
-    public LiveData<Date> getStartDate() {
+    public LiveData<FetchableDate> getStartDate() {
         if (this.startDate == null) {
-            this.startDate = new MutableLiveData<Date>();
+            this.startDate = new MutableLiveData<>();
         }
         return this.startDate;
     }
 
-    public void setEndDate(Date date) {
+    public void setEndDate(boolean shouldFetch, Date date) {
         if (this.endDate == null) {
-            this.endDate = new MutableLiveData<Date>();
+            this.endDate = new MutableLiveData<>();
         }
-        this.endDate.setValue(date);
+        this.endDate.setValue(new FetchableDate(shouldFetch, date));
     }
 
-    public LiveData<Date> getEndDate() {
+    public LiveData<FetchableDate> getEndDate() {
         if (this.endDate == null) {
-            this.endDate = new MutableLiveData<Date>();
+            this.endDate = new MutableLiveData<>();
         }
         return this.endDate;
     }
 
-    private void fetchTransactions(List<EmployeeModel> selectedEmployees) {
+    public void fetchTransactions(List<EmployeeModel> selectedEmployees) {
+        Log.d(TAG, "Fetching transactions");
         setIsLoading(true);
         APIInterface apiInterface = APIClient.getClient().create(APIInterface.class);
         Observable<Response<TipsList>> transactionsObservable;
-        transactionsObservable = apiInterface.doGetTips(formatQueryParamsMap(selectedEmployees), formatQueryParamsList(selectedEmployees));
+        transactionsObservable = apiInterface.doGetTips(formatQueryParamsMap(selectedEmployees), formatQueryParamsList(selectedEmployees), setPage());
         Disposable disposable = transactionsObservable.subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(this::handleResult, this::handleError);
         mCompositeDisposable.add(disposable);
     }
 
+    private String setPage() {
+        if (this.getHasMore() != null && this.getHasMore().getValue() != null && this.getHasMore().getValue() && nextPage > 0) {
+            return nextPage + "";
+        } else {
+            return null;
+        }
+    }
+
+
     private Map<String, String> formatQueryParamsMap(List<EmployeeModel> selectedEmployees) {
         Map<String, String> queryParams = new HashMap<>();
-        if (startDate.getValue() != null && endDate.getValue() != null) {
-            queryParams.put("startTime", formatUrlDate(startDate.getValue()));
-            queryParams.put("endTime", formatUrlDate(endDate.getValue()));
+        if ((startDate.getValue() != null && endDate.getValue() != null) && (startDate.getValue().getDate() != null && endDate.getValue().getDate() != null)) {
+            queryParams.put("startTime", formatUrlDate(startDate.getValue().getDate()));
+            queryParams.put("endTime", formatUrlDate(endDate.getValue().getDate()));
         }
 
         if (selectedEmployees == null || selectedEmployees.size() == 0) {
@@ -160,8 +165,6 @@ public class TipsViewModel extends ViewModel {
     private void handleResult(Response<TipsList> tipsListResponse) {
         if (tipsListResponse.isSuccessful()) {
             formatTransactionsList(tipsListResponse.body());
-        } else {
-            Log.e(TAG, tipsListResponse.errorBody().toString());
         }
         setIsLoading(false);
     }
@@ -173,7 +176,9 @@ public class TipsViewModel extends ViewModel {
     }
 
     private void formatTransactionsList(TipsList tipsList) {
-        List<TipsModel> transactionsListHolder = new ArrayList<TipsModel>();
+        setPaginationData(tipsList);
+        List<TipsModel> transactionsListHolder = nextPage > 2 ? this.transactions.getValue() : new ArrayList<TipsModel>();
+
         for (TipsList.Datum tip : tipsList.getData()) {
 
             String name = getEmployeeName(tip.getEmployeeId());
@@ -188,7 +193,7 @@ public class TipsViewModel extends ViewModel {
 
             transactionsListHolder.add(tipsModel);
         }
-        if (startDate.getValue() != null && endDate.getValue() != null) {
+        if ((startDate.getValue() != null && endDate.getValue() != null) && (startDate.getValue().getDate() != null && endDate.getValue().getDate() != null)) {
             setSelectedTransactionsForTips(transactionsListHolder);
         }
         setEmployeeTransactions(transactionsListHolder);
@@ -204,6 +209,10 @@ public class TipsViewModel extends ViewModel {
     }
 
     private void setEmployeeTransactions(List<TipsModel> transactionsListHolder) {
+        Log.d(TAG, "Set Employee TRans");
+        if (this.transactions == null) {
+            this.transactions = new MutableLiveData<>();
+        }
         this.transactions.setValue(transactionsListHolder);
     }
 
@@ -264,6 +273,31 @@ public class TipsViewModel extends ViewModel {
 
 
 
+    private void setPaginationData(TipsList tipsList) {
+        if (tipsList.getLinks().getNext() != null) {
+            this.nextPage = tipsList.getMeta().getCurrentPage() + 1;
+            this.setHasMore(true);
+        } else {
+            this.nextPage = -1;
+            this.setHasMore(false);
+        }
+    }
+
+    public LiveData<Boolean> getHasMore() {
+        if (this.hasMore == null) {
+            this.hasMore = new MutableLiveData<>();
+        }
+        return this.hasMore;
+    }
+
+
+    private void setHasMore(Boolean hasMore) {
+        if (this.hasMore == null) {
+            this.hasMore = new MutableLiveData<>();
+        }
+        this.hasMore.setValue(hasMore);
+    }
+
 
 
     private Integer sumTipsOfTransactions(List<TipsModel> transactionsForTips) {
@@ -282,5 +316,31 @@ public class TipsViewModel extends ViewModel {
     private String formatUrlDate(Date date) {
         return new SimpleDateFormat("yyyy-MM-dd_HH:mm:ss", Locale.getDefault())
                 .format(date);
+    }
+
+    public class FetchableDate {
+        private boolean shouldFetch;
+        private Date date;
+
+        public FetchableDate(boolean shouldFetch, Date date) {
+            this.shouldFetch = shouldFetch;
+            this.date = date;
+        }
+
+        public boolean isShouldFetch() {
+            return shouldFetch;
+        }
+
+        public void setShouldFetch(boolean shouldFetch) {
+            this.shouldFetch = shouldFetch;
+        }
+
+        public Date getDate() {
+            return date;
+        }
+
+        public void setDate(Date date) {
+            this.date = date;
+        }
     }
 }

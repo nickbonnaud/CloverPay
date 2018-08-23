@@ -38,4 +38,5 @@
     <string name="employee_filter">Employee Filter</string>
     <string name="set">Set</string>
     <string name="cancel">Cancel</string>
+    <string name="load_more">Load More</string>
 </resources>
