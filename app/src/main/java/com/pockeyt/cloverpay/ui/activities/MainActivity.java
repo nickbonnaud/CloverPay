@@ -300,8 +300,7 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
 
     @Override
     public void onBackPressed() {
-        resetCustomer();
-        super.onBackPressed();
+        goBack();
     }
 
     @Override
@@ -315,24 +314,27 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
             fragmentTransaction.commit();
             return true;
         } else if(item.getItemId() == android.R.id.home) {
-            Log.d(TAG, "Back clicked");
-            resetCustomer();
-            if (fragmentManager.getBackStackEntryCount() == 0) {
-                if (mDidStartFromRegister) {
-                    goBackToRegister();
-                } else {
-                    super.onBackPressed();
-                }
-
-            } else {
-                Log.d(TAG, "back stack count greater than 0 " + fragmentManager.getBackStackEntryCount());
-                updateMenuBar(fragmentManager);
-                fragmentManager.popBackStackImmediate();
-                checkSwapFragments();
-            }
+            goBack();
             return super.onOptionsItemSelected(item);
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    private void goBack() {
+        resetCustomer();
+        FragmentManager fragmentManager = getSupportFragmentManager();
+        if (fragmentManager.getBackStackEntryCount() == 0) {
+            if (mDidStartFromRegister) {
+                goBackToRegister();
+            } else {
+                super.onBackPressed();
+            }
+
+        } else {
+            updateMenuBar(fragmentManager);
+            fragmentManager.popBackStackImmediate();
+            checkSwapFragments();
+        }
     }
 
     private void checkSwapFragments() {
@@ -350,6 +352,9 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
 
         if ((customerListFragment != null && customerListFragment.isVisible()) || (customerViewPagerFragment != null && customerViewPagerFragment.isVisible())) {
             if (mIsTablet) {
+                if (!mDidStartFromRegister) {
+                    getSupportActionBar().setDisplayHomeAsUpEnabled(false);
+                }
                 getSupportFragmentManager().popBackStack();
                 CustomerGridPagerFragment instantiatedGridPagerFragment = customerGridPagerFragment == null ? new CustomerGridPagerFragment() : customerGridPagerFragment;
                 getSupportFragmentManager().beginTransaction().replace(R.id.placeHolder, instantiatedGridPagerFragment, CUSTOMER_GRID_PAGER_FRAGMENT).commit();
@@ -409,6 +414,9 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
                 setCustomerListFragment();
             } else {
                 setCustomerGridPagerFragment();
+                if (!mDidStartFromRegister) {
+                    getSupportActionBar().setDisplayHomeAsUpEnabled(false);
+                }
             }
         }
     }

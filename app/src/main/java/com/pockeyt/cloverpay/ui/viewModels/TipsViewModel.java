@@ -44,7 +44,6 @@ public class TipsViewModel extends ViewModel {
     private int nextPage;
 
     public LiveData<List<TipsModel>> getEmployeeTransactions(List<EmployeeModel> selectedEmployees, List<EmployeeModel> employees) {
-        Log.d(TAG, "get employee transactions");
         this.mEmployees = employees;
         if (this.transactions == null) {
             this.transactions = new MutableLiveData<List<TipsModel>>();
@@ -54,14 +53,12 @@ public class TipsViewModel extends ViewModel {
     }
 
     public void paramsChangedSearchTransactions(List<EmployeeModel> selectedEmployees, List<EmployeeModel> employees) {
-        Log.d(TAG, "Params changed");
         resetParams();
         this.mEmployees = employees;
         fetchTransactions(selectedEmployees);
     }
 
     public void resetParams() {
-        Log.d(TAG, "Reset Params");
         this.nextPage = -1;
         setEmployeeTransactions(new ArrayList<>());
         this.hasMore.setValue(false);
@@ -115,7 +112,6 @@ public class TipsViewModel extends ViewModel {
     }
 
     public void fetchTransactions(List<EmployeeModel> selectedEmployees) {
-        Log.d(TAG, "Fetching transactions");
         setIsLoading(true);
         APIInterface apiInterface = APIClient.getClient().create(APIInterface.class);
         Observable<Response<TipsList>> transactionsObservable;
@@ -177,7 +173,8 @@ public class TipsViewModel extends ViewModel {
 
     private void formatTransactionsList(TipsList tipsList) {
         setPaginationData(tipsList);
-        List<TipsModel> transactionsListHolder = nextPage > 2 ? this.transactions.getValue() : new ArrayList<TipsModel>();
+
+        List<TipsModel> transactionsListHolder = tipsList.getMeta().getCurrentPage() > 1 ? this.transactions.getValue() : new ArrayList<TipsModel>();
 
         for (TipsList.Datum tip : tipsList.getData()) {
 
