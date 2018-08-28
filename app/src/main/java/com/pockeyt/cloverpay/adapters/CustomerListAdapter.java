@@ -6,6 +6,7 @@ import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.support.annotation.NonNull;
 import android.support.v7.widget.RecyclerView;
+import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -78,6 +79,7 @@ public class CustomerListAdapter extends RecyclerView.Adapter {
         private void setCustomerName() {
             String customerName = mCustomers.get(mIndex).getFirstName() + " " + mCustomers.get(mIndex).getLastName();
             mCustomerRow.setText(customerName);
+            mCustomerRow.setTextSize(TypedValue.COMPLEX_UNIT_SP, Math.round(DisplayHelpers.getDpWidth(mContext) / 24));
         }
 
         private void setCustomerImage() {
@@ -85,7 +87,7 @@ public class CustomerListAdapter extends RecyclerView.Adapter {
             creator.transform(new CropCircleTransformation()).into(new Target() {
                 @Override
                 public void onBitmapLoaded(Bitmap bitmap, Picasso.LoadedFrom from) {
-                    int imageDimensions = DisplayHelpers.dipToPixels(mContext, 70);
+                    int imageDimensions = Math.round(DisplayHelpers.getDpWidth(mContext) / 5);
                     BitmapDrawable customerImage = new BitmapDrawable(mContext.getResources(), Bitmap.createScaledBitmap(bitmap, imageDimensions, imageDimensions, true));
                     int h = customerImage.getIntrinsicHeight();
                     int w = customerImage.getIntrinsicWidth();
