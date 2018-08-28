@@ -118,6 +118,7 @@ public class CustomerPayFragment extends Fragment {
         String buttonText = "Charge " + mCustomer.getFirstName();
         mPayButton.setText(buttonText);
         mPayButton.setEnabled(true);
+        mPayButton.setAlpha(1f);
 
         ImageView customerPayImage = mView.findViewById(R.id.customerPayImage);
         ViewGroup.LayoutParams params = customerPayImage.getLayoutParams();
@@ -145,6 +146,7 @@ public class CustomerPayFragment extends Fragment {
         mPayButton = mView.findViewById(R.id.payButton);
         mPayButton.setText("Charge Customer");
         mPayButton.setEnabled(false);
+        mPayButton.setAlpha(0.7f);
 
         mLoyaltyButton.setVisibility(View.GONE);
         mLoyaltyText.setVisibility(View.GONE);
@@ -313,14 +315,18 @@ public class CustomerPayFragment extends Fragment {
 
     private void setPayOnClickListener() {
         mPayButton.setOnClickListener(v -> {
-            mPayButton.setEnabled(false);
-            setViewModels();
-            if (checkCustomerOwnsTransaction()) {
-                Log.d(TAG, "Customer owns transaction");
-                sendPaymentRequestToCustomer();
+            if (((MainActivity) getActivity()).getDidStartFromRegister()) {
+                mPayButton.setEnabled(false);
+                setViewModels();
+                if (checkCustomerOwnsTransaction()) {
+                    Log.d(TAG, "Customer owns transaction");
+                    sendPaymentRequestToCustomer();
+                } else {
+                    Log.d(TAG, "customer does not own transaction");
+                    showAlertErrorDialog();
+                }
             } else {
-                Log.d(TAG, "customer does not own transaction");
-                showAlertErrorDialog();
+                Toast.makeText(getContext(), "No transaction from Clover Register. Please return to the Register and select the Pockeyt Pay button when settling a transaction.", Toast.LENGTH_LONG).show();
             }
         });
     }
@@ -347,10 +353,15 @@ public class CustomerPayFragment extends Fragment {
     }
 
     private void sendPaymentRequestToCustomer() {
-        Log.d(TAG, "Send pay request to customer");
-        Log.d(TAG, mCloverTransactionModel.getEmployeeId());
         APIInterface apiInterface = APIClient.getClient().create(APIInterface.class);
-        int pockeytTransactionId =  mPockeytTransactionModel == null ? null : mPockeytTransactionModel.getId();
+        Integer pockeytTransactionId =  mPockeytTransactionModel == null ? null : mPockeytTransactionModel.getId();
+
+        if (pockeytTransactionId == null) {
+            Log.d(TAG, "Pockeyt transaction id is null");
+        } else {
+            Log.d(TAG, "Pockeyt transaction id is not null");
+        }
+
         Observable<Response<JSONObject>> sendPayRequestObservable = apiInterface.doRequestPostTransaction("clover", mCloverTransactionModel.getOrderId(), mCustomer.getId(), mCloverTransactionModel.getAmount(), mCloverTransactionModel.getTaxAmount(), mCloverTransactionModel.getEmployeeId(), pockeytTransactionId);
         Disposable disposable = sendPayRequestObservable.subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())

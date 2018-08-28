@@ -3,6 +3,7 @@ package com.pockeyt.cloverpay.ui.fragments;
 import android.arch.lifecycle.LiveData;
 import android.arch.lifecycle.ViewModelProviders;
 import android.content.Context;
+import android.content.res.Configuration;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
@@ -42,6 +43,7 @@ import com.pockeyt.cloverpay.ui.viewModels.TipsViewModel;
 import com.pockeyt.cloverpay.utils.DisplayHelpers;
 
 import java.text.NumberFormat;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -64,13 +66,13 @@ public class TipsTableFragment extends Fragment implements EmployeesCheckboxFrag
 
     private ImageView mSpinnerImageView;
     private Animation mAnimationRotation;
+    private View mView;
 
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        View view = inflater.inflate(R.layout.fragment_employee_tips, container, false);
+        mView = inflater.inflate(R.layout.fragment_employee_tips, container, false);
         getCurrentEmployee().observe(this, currentEmployee -> {
-            Log.d(TAG, "Get current Employee observer");
             if (didEmployeeChange(currentEmployee)) {
                 TipsViewModel tipsViewModel = ViewModelProviders.of(getActivity()).get(TipsViewModel.class);
                 tipsViewModel.resetParams();
@@ -86,16 +88,14 @@ public class TipsTableFragment extends Fragment implements EmployeesCheckboxFrag
             mCurrentEmployee = currentEmployee;
             EmployeesViewModel employeesViewModel = ViewModelProviders.of(getActivity()).get(EmployeesViewModel.class);
             employeesViewModel.getEmployees().observe(this, employees -> {
-                Log.d(TAG, "5");
                 mEmployees = employees;
 
                 TipsViewModel tipsViewModel = ViewModelProviders.of(getActivity()).get(TipsViewModel.class);
                 tipsViewModel.getEmployeeTransactions(mSelectedEmployees, employees).observe(this, tips -> {
-                    Log.d(TAG, "6");
                     mCurrentTips = tips;
-                    setTipsTable(view);
+                    setTipsTable(mView);
                     if (mCurrentTips.size() > 0) {
-                        setHeaders(view);
+                        setHeaders(mView);
                     }
                 });
             });
@@ -103,8 +103,8 @@ public class TipsTableFragment extends Fragment implements EmployeesCheckboxFrag
 
         setHasOptionsMenu(true);
         setTipTotalTitle();
-        setLoadMoreData(view);
-        return view;
+        setLoadMoreData(mView);
+        return mView;
     }
 
     private boolean didEmployeeChange(EmployeeModel currentEmployee) {
@@ -146,7 +146,7 @@ public class TipsTableFragment extends Fragment implements EmployeesCheckboxFrag
             String title;
             if (startDate != null && startDate.getDate() != null) {
                 getMenuItem(mMenu, R.id.action_tips_dates_clear).setVisible(true);
-                title = formatDisplayDate(startDate.getDate());
+                title = setDate(startDate.getDate());
             } else {
                 title = getString(R.string.tips_start_date);
             }
@@ -158,13 +158,20 @@ public class TipsTableFragment extends Fragment implements EmployeesCheckboxFrag
             String title;
             if (endDate != null && endDate.getDate() != null) {
                 getMenuItem(mMenu, R.id.action_tips_dates_clear).setVisible(true);
-                title = formatDisplayDate(endDate.getDate());
+                title = setDate(endDate.getDate());
             } else {
                 title = getString(R.string.tips_end_date);
             }
             getMenuItem(mMenu, R.id.action_date_picker_end).setTitle(title);
             doSearch();
         });
+    }
+
+    private String setDate(Date date) {
+        if (DisplayHelpers.isLandscape(getContext())) {
+            return formatDisplayDateLong(date);
+        }
+        return formatDisplayDateShort(date);
     }
 
     private void doSearch() {
@@ -206,9 +213,7 @@ public class TipsTableFragment extends Fragment implements EmployeesCheckboxFrag
         tableLayout.removeAllViews();
 
         TipsViewModel tipsViewModel = ViewModelProviders.of(getActivity()).get(TipsViewModel.class);
-        TipsViewModel.FetchableDate startDate = tipsViewModel.getStartDate().getValue();
-        TipsViewModel.FetchableDate endDate = tipsViewModel.getEndDate().getValue();
-        int color = (startDate != null && startDate.getDate() != null) && (endDate != null && endDate.getDate() != null) ? Color.LTGRAY : Color.TRANSPARENT;
+        List<TipsModel> selectedTransactions = tipsViewModel.getSelectedTransactionsForTips().getValue();
 
 
         for (int i = 0; i < mCurrentTips.size(); i++) {
@@ -222,11 +227,19 @@ public class TipsTableFragment extends Fragment implements EmployeesCheckboxFrag
             row.setClickable(true);
             row.setId(i);
             row.setOnClickListener(tableRowOnClickListener);
-            row.setBackgroundColor(color);
+            row.setBackgroundColor(setTransactionSelected(mCurrentTips.get(i), selectedTransactions));
 
             tableLayout.addView(addDataToRow(row, mCurrentTips.get(i)), i);
         }
     }
+
+    private int setTransactionSelected(TipsModel transaction, List<TipsModel> selectedTransactions) {
+        if (selectedTransactions != null && selectedTransactions.size() > 0) {
+            return selectedTransactions.indexOf(transaction) == -1 ? Color.TRANSPARENT : Color.LTGRAY;
+        }
+        return Color.TRANSPARENT;
+    }
+
 
     private View.OnClickListener tableRowOnClickListener = new View.OnClickListener() {
         @Override
@@ -240,7 +253,6 @@ public class TipsTableFragment extends Fragment implements EmployeesCheckboxFrag
     private void formatHeaders(View view) {
         TableRow headerRow = view.findViewById(R.id.tipsHeader);
         TableLayout tableLayout = view.findViewById(R.id.tipsTable);
-
         TableRow row = (TableRow) tableLayout.getChildAt(0);
 
         if (row != null) {
@@ -254,12 +266,24 @@ public class TipsTableFragment extends Fragment implements EmployeesCheckboxFrag
     }
 
     private TableRow addDataToRow(TableRow row, TipsModel tip) {
-        row.addView(addDataToTextView(tip.getDate()));
-        row.addView(addDataToTextView(tip.getEmployeeName()));
-        row.addView(addDataToTextView(tip.getBillId()));
-        row.addView(addDataToTextView(tip.getBillTotal()));
-        row.addView(addDataToTextView(tip.getTipAmountFormatted()));
+        if (DisplayHelpers.isLandscape(getContext())) {
+            row.addView(addDataToTextView(tip.getDate()));
+            row.addView(addDataToTextView(tip.getEmployeeName()));
+            row.addView(addDataToTextView(tip.getBillId()));
+            row.addView(addDataToTextView(tip.getBillTotal()));
+            row.addView(addDataToTextView(tip.getTipAmountFormatted()));
+        } else {
+            row.addView(addDataToTextView(stringToDateShort(tip.getDate())));
+            row.addView(addDataToTextView(tip.getEmployeeName()));
+            row.addView(addDataToTextView(getLastFourOrderId(tip.getBillId())));
+            row.addView(addDataToTextView(tip.getBillTotal()));
+            row.addView(addDataToTextView(tip.getTipAmountFormatted()));
+        }
         return row;
+    }
+
+    private String getLastFourOrderId(String billId) {
+        return billId.substring(billId.length() - 4);
     }
 
     private TextView addDataToTextView(String tipData) {
@@ -364,6 +388,7 @@ public class TipsTableFragment extends Fragment implements EmployeesCheckboxFrag
         dateTimeDialogFragment.startAtCalendarView();
         dateTimeDialogFragment.set24HoursMode(false);
         dateTimeDialogFragment.setDefaultDateTime(new GregorianCalendar().getTime());
+        dateTimeDialogFragment.setHighlightAMPMSelection(true);
 
         setListener(dateTimeDialogFragment);
         dateTimeDialogFragment.show(getActivity().getSupportFragmentManager(), "datepicker_dialog");
@@ -398,9 +423,24 @@ public class TipsTableFragment extends Fragment implements EmployeesCheckboxFrag
         });
     }
 
+    private String stringToDateShort(String date) {
+        try {
+            Date formattedDate = new SimpleDateFormat("EEE, MMM d, yyyy h:mm a").parse(date);
+            Log.d(TAG, formattedDate.toString() + " here");
+            return formatDisplayDateShort(formattedDate);
+        } catch (ParseException e) {
+            Log.d(TAG, "Error");
+            return null;
+        }
+    }
 
-    private String formatDisplayDate(Date date) {
+    private String formatDisplayDateLong(Date date) {
         return new SimpleDateFormat("EEE, MMM d 'at' h:mm a", Locale.getDefault())
+                .format(date);
+    }
+
+    private String formatDisplayDateShort(Date date) {
+        return new SimpleDateFormat("MM/d/yy", Locale.getDefault())
                 .format(date);
     }
 
@@ -456,5 +496,34 @@ public class TipsTableFragment extends Fragment implements EmployeesCheckboxFrag
         CurrentEmployeeViewModel currentEmployeeViewModel = ViewModelProviders.of(getActivity()).get(CurrentEmployeeViewModel.class);
         currentEmployeeViewModel.fetchCurrentEmployee();
         super.onResume();
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        TipsViewModel tipsViewModel = ViewModelProviders.of(getActivity()).get(TipsViewModel.class);
+        TipsViewModel.FetchableDate startDate = tipsViewModel.getStartDate().getValue();
+        TipsViewModel.FetchableDate endDate = tipsViewModel.getEndDate().getValue();
+
+        if (startDate != null && startDate.getDate() != null) {
+            getMenuItem(mMenu, R.id.action_date_picker_start).setTitle(setDate(startDate.getDate()));
+        }
+
+        if (endDate != null && endDate.getDate() != null) {
+            getMenuItem(mMenu, R.id.action_date_picker_end).setTitle(setDate(endDate.getDate()));
+        }
+
+        TableLayout tableLayout = mView.findViewById(R.id.tipsTable);
+        tableLayout.setVisibility(View.GONE);
+        setTipsTable(mView);
+        tableLayout.setVisibility(View.VISIBLE);
+        tableLayout.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+            @Override
+            public void onGlobalLayout() {
+                if (mCurrentTips.size() > 0) {
+                    formatHeaders(mView);
+                }
+            }
+        });
     }
 }

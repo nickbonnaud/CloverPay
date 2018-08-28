@@ -207,7 +207,11 @@ public class NotificationHandler  {
     private Bitmap getCustomerPhoto(CustomerModel customer) throws IOException {
         Context context = PockeytPay.getAppContext();
         RequestCreator creator = ImageLoader.load(context,customer.getPhotoUrl());
-        return creator.transform(new CropCircleTransformation()).get();
+        creator.resize(context.getResources().getDimensionPixelSize(android.R.dimen.notification_large_icon_width), context.getResources().getDimensionPixelSize(android.R.dimen.notification_large_icon_height));
+        if (android.os.Build.VERSION.SDK_INT > 19) {
+            return creator.transform(new CropCircleTransformation()).get();
+        }
+        return creator.get();
     }
 
     private void broadcastUpdatedCustomer(CustomerModel customer, String type) {

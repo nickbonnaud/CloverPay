@@ -5,7 +5,9 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:stretchColumns="*">
 
-    <TableRow android:minHeight="30dp" android:id="@+id/tipsHeader">
+    <TableRow
+        android:minHeight="30dp"
+        android:id="@+id/tipsHeader">
         <android.support.v7.widget.AppCompatTextView
             android:layout_height="match_parent"
             android:gravity="center"

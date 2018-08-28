@@ -19,15 +19,12 @@ import android.view.Menu;
 import android.view.MenuItem;
 
 import com.clover.sdk.v1.Intents;
-import com.clover.sdk.v3.employees.Employee;
-import com.clover.sdk.v3.employees.EmployeeConnector;
 import com.pockeyt.cloverpay.R;
 import com.pockeyt.cloverpay.handlers.NotificationHandler;
 import com.pockeyt.cloverpay.models.BusinessModel;
 import com.pockeyt.cloverpay.models.CloverTransactionModel;
 import com.pockeyt.cloverpay.models.CustomerModel;
 import com.pockeyt.cloverpay.models.CustomerPubSubModel;
-import com.pockeyt.cloverpay.models.EmployeeModel;
 import com.pockeyt.cloverpay.models.TokenModel;
 import com.pockeyt.cloverpay.ui.fragments.CustomerGridPagerFragment;
 import com.pockeyt.cloverpay.ui.fragments.CustomerListFragment;
@@ -36,13 +33,13 @@ import com.pockeyt.cloverpay.ui.fragments.LoginDialogFragment;
 import com.pockeyt.cloverpay.ui.fragments.TipsTableFragment;
 import com.pockeyt.cloverpay.ui.viewModels.BusinessViewModel;
 import com.pockeyt.cloverpay.ui.viewModels.CloverTransactionViewModel;
-import com.pockeyt.cloverpay.ui.viewModels.CurrentEmployeeViewModel;
 import com.pockeyt.cloverpay.ui.viewModels.CustomersViewModel;
 import com.pockeyt.cloverpay.ui.viewModels.PockeytTransactionViewModel;
 import com.pockeyt.cloverpay.ui.viewModels.SelectedCustomerViewModel;
 import com.pockeyt.cloverpay.ui.viewModels.TipsViewModel;
 import com.pockeyt.cloverpay.ui.viewModels.TokenViewModel;
 import com.pockeyt.cloverpay.utils.CloverTenderConnecter;
+import com.pockeyt.cloverpay.utils.DisplayHelpers;
 import com.pockeyt.cloverpay.utils.Interfaces;
 import com.pockeyt.cloverpay.utils.PusherService;
 
@@ -63,7 +60,7 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
     private static final String TAG = MainActivity.class.getSimpleName();
     private CompositeDisposable mCompositeDisposable = new CompositeDisposable();
     private CloverTenderConnecter mCloverTenderConnecter;
-    private boolean mIsTablet;
+    private boolean mIsLandscape;
     private NotificationBroadcastReceiver mNotificationBroadcastReceiver;
     private PublishSubject<CustomerPubSubModel> mCustomerPubSub;
     private PublishSubject<BusinessModel> mAuthReady;
@@ -79,7 +76,7 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
         setAuthReadyPubSub();
         setCloverConnectors();
 
-        mIsTablet = getResources().getBoolean(R.bool.is_tablet);
+        mIsLandscape = DisplayHelpers.isLandscape(this);
         checkShouldShowLogin();
 
         getSupportActionBar().setDisplayShowTitleEnabled(false);
@@ -109,7 +106,7 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
             mCloverTenderConnecter.getAccountData();
         }
 
-        if (!mIsTablet) {
+        if (!mIsLandscape) {
             setCustomerListFragment();
         } else {
             setCustomerGridPagerFragment();
@@ -143,15 +140,19 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
         customersViewModel.getCustomers().observe(this, customers -> {
             PockeytTransactionViewModel pockeytTransactionViewModel = ViewModelProviders.of(this).get(PockeytTransactionViewModel.class);
             pockeytTransactionViewModel.getpockeytTransaction(cloverTransaction.getOrderId()).observe(this, pockeytTransaction -> {
-                for (int i = 0; i < customers.size(); i++) {
-                    if (customers.get(i).getId() == pockeytTransaction.getCustomerId()) {
-                        if (pockeytTransaction.getTax() != cloverTransaction.getTaxAmount() || pockeytTransaction.getTotal() != cloverTransaction.getAmount()) {
-                            pockeytTransactionViewModel.fetchPockeytTransaction(cloverTransaction.getOrderId());
+                if (pockeytTransaction != null) {
+                    for (int i = 0; i < customers.size(); i++) {
+                        if (customers.get(i).getId() == pockeytTransaction.getCustomerId()) {
+                            if (pockeytTransaction.getTax() != cloverTransaction.getTaxAmount() || pockeytTransaction.getTotal() != cloverTransaction.getAmount()) {
+                                pockeytTransactionViewModel.fetchPockeytTransaction(cloverTransaction.getOrderId());
+                            }
+                            SelectedCustomerViewModel selectedCustomerViewModel = ViewModelProviders.of(this).get(SelectedCustomerViewModel.class);
+                            selectedCustomerViewModel.setCustomer(customers.get(i));
+                            break;
                         }
-                        SelectedCustomerViewModel selectedCustomerViewModel = ViewModelProviders.of(this).get(SelectedCustomerViewModel.class);
-                        selectedCustomerViewModel.setCustomer(customers.get(i));
-                        break;
                     }
+                } else {
+
                 }
             });
         });
@@ -186,9 +187,13 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
     private void getBusiness() {
         BusinessViewModel businessViewModel = ViewModelProviders.of(this).get(BusinessViewModel.class);
         businessViewModel.getBusiness().observe(this, business -> {
-            TokenViewModel tokenViewModel = ViewModelProviders.of(this).get(TokenViewModel.class);
-            tokenViewModel.setToken(business.getToken(), true);
-            mAuthReady.onNext(business);
+            if (business == null) {
+                showLoginDialog();
+            } else {
+                TokenViewModel tokenViewModel = ViewModelProviders.of(this).get(TokenViewModel.class);
+                tokenViewModel.setToken(business.getToken(), true);
+                mAuthReady.onNext(business);
+            }
         });
     }
 
@@ -233,12 +238,6 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
         startService(intent);
     }
 
-//    @Override
-//    public void onActiveEmployeeChanged(Employee employee) {
-//        Log.d(TAG, "On active employee changed");
-//        CurrentEmployeeViewModel currentEmployeeViewModel = ViewModelProviders.of(this).get(CurrentEmployeeViewModel.class);
-//        currentEmployeeViewModel.setCurrentEmployee(new EmployeeModel(employee.getId(), employee.getName(), employee.getRole().toString()));
-//    }
 
     public class NotificationBroadcastReceiver extends BroadcastReceiver {
 
@@ -341,17 +340,17 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
         CustomerGridPagerFragment customerGridPagerFragment = (CustomerGridPagerFragment) getSupportFragmentManager().findFragmentByTag(CUSTOMER_GRID_PAGER_FRAGMENT);
         CustomerListFragment customerListFragment = (CustomerListFragment) getSupportFragmentManager().findFragmentByTag(CUSTOMER_LIST_FRAGMENT);
         CustomerViewPagerFragment customerViewPagerFragment = (CustomerViewPagerFragment) getSupportFragmentManager().findFragmentByTag(CUSTOMER_VIEWPAGER_FRAGMENT);
-        mIsTablet = getResources().getBoolean(R.bool.is_tablet);
+        mIsLandscape = DisplayHelpers.isLandscape(this);
 
         if (customerGridPagerFragment != null && customerGridPagerFragment.isVisible()) {
-            if (!mIsTablet) {
+            if (!mIsLandscape) {
                 CustomerListFragment instantiatedListFragment = customerListFragment == null ? new CustomerListFragment() : customerListFragment;
                 getSupportFragmentManager().beginTransaction().replace(R.id.placeHolder, instantiatedListFragment, CUSTOMER_LIST_FRAGMENT).commit();
             }
         }
 
         if ((customerListFragment != null && customerListFragment.isVisible()) || (customerViewPagerFragment != null && customerViewPagerFragment.isVisible())) {
-            if (mIsTablet) {
+            if (mIsLandscape) {
                 if (!mDidStartFromRegister) {
                     getSupportActionBar().setDisplayHomeAsUpEnabled(false);
                 }
@@ -409,8 +408,8 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
     public void onConfigurationChanged(Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
         if (getSupportFragmentManager().findFragmentByTag(TIPS_TRACKER_FRAGMENT) == null || !getSupportFragmentManager().findFragmentByTag(TIPS_TRACKER_FRAGMENT).isVisible()) {
-            mIsTablet = getResources().getBoolean(R.bool.is_tablet);
-            if (!mIsTablet) {
+            mIsLandscape = DisplayHelpers.isLandscape(this);
+            if (!mIsLandscape) {
                 setCustomerListFragment();
             } else {
                 setCustomerGridPagerFragment();
@@ -428,5 +427,9 @@ public class MainActivity extends AppCompatActivity implements Interfaces.OnList
                 getSupportActionBar().setDisplayHomeAsUpEnabled(getSupportFragmentManager().getBackStackEntryCount() > 0 || mDidStartFromRegister);
             }
         });
+    }
+
+    public boolean getDidStartFromRegister() {
+        return mDidStartFromRegister;
     }
 }

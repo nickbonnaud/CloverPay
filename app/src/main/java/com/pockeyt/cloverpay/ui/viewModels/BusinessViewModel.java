@@ -58,6 +58,7 @@ public class BusinessViewModel extends ViewModel {
             BusinessModel business = setBusinessModel(businessResponse.body());
             setBusiness(business);
         } else {
+            setBusiness(null);
             try {
                 JSONObject errorBody = new JSONObject(businessResponse.errorBody().string());
                 Log.e(TAG, errorBody.toString());
@@ -82,6 +83,7 @@ public class BusinessViewModel extends ViewModel {
     }
 
     private void handleError(Throwable throwable) {
+        setBusiness(null);
         throwable.printStackTrace();
     }
 

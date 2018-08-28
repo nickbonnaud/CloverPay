@@ -19,6 +19,7 @@ import com.pockeyt.cloverpay.models.CustomerModel;
 import com.pockeyt.cloverpay.ui.activities.MainActivity;
 import com.pockeyt.cloverpay.ui.viewModels.CustomersViewModel;
 import com.pockeyt.cloverpay.ui.viewModels.SelectedCustomerViewModel;
+import com.pockeyt.cloverpay.utils.DisplayHelpers;
 import com.pockeyt.cloverpay.utils.Interfaces;
 
 import java.util.List;
@@ -42,8 +43,7 @@ public class CustomerListFragment extends Fragment {
 
         SelectedCustomerViewModel selectedCustomerViewModel = ViewModelProviders.of(getActivity()).get(SelectedCustomerViewModel.class);
         CustomerModel customer = selectedCustomerViewModel.getCustomer().getValue();
-        if (customer != null && !getResources().getBoolean(R.bool.is_tablet)) {
-            Log.d(TAG, "WE ARE HERE!!!");
+        if (customer != null && !DisplayHelpers.isLandscape(getContext())) {
             CustomerViewPagerFragment fragment = new CustomerViewPagerFragment();
             FragmentManager fragmentManager = getActivity().getSupportFragmentManager();
             FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();

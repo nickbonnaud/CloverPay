@@ -9,7 +9,8 @@
 <android.support.constraint.ConstraintLayout
     android:id="@+id/payLayout"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content">
+    android:layout_height="wrap_content"
+    android:paddingBottom="8dp">
 
     <ImageView
         android:id="@+id/customerPayImage"
@@ -42,38 +43,40 @@
         android:layout_marginEnd="8dp"
         android:layout_marginStart="8dp"
         android:layout_marginTop="8dp"
-        android:text=""
+        android:minHeight="38dp"
+        android:background="@color/colorPrimary"
+        android:textColor="@android:color/white"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/customerPayName" />
 
 
-
     <br.com.simplepass.loading_button_lib.customViews.CircularProgressButton
         android:id="@+id/loyaltyButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@drawable/test_button_shape"
         android:layout_marginEnd="8dp"
         android:layout_marginStart="8dp"
         android:layout_marginTop="8dp"
-        android:text="Redeem Loyalty Reward"
+        android:minHeight="38dp"
+        android:background="@drawable/test_button_shape"
+        android:text="@string/redeem_loyalty_reward"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/dealButton"
-        />
+        app:layout_constraintTop_toBottomOf="@+id/dealButton" />
 
 
     <br.com.simplepass.loading_button_lib.customViews.CircularProgressButton
         android:id="@+id/dealButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@drawable/test_button_shape"
         android:layout_marginEnd="8dp"
         android:layout_marginStart="8dp"
         android:layout_marginTop="8dp"
-        android:text="Redeem Deal"
+        android:minHeight="38dp"
+        android:background="@drawable/test_button_shape"
+        android:text="@string/redeem_deal"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/dealText" />
@@ -89,7 +92,7 @@
         android:drawableLeft="@drawable/ic_local_offer_black_24dp"
         android:drawablePadding="5dp"
         android:gravity="center_vertical"
-        android:text="deal"
+        android:text="@string/deal"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/loyaltyText" />
@@ -104,7 +107,7 @@
         android:drawableLeft="@drawable/ic_loyalty_black_24dp"
         android:drawablePadding="5dp"
         android:gravity="center_vertical"
-        android:text="loyalty"
+        android:text="@string/loyalty"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/payButton" />

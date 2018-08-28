@@ -144,7 +144,6 @@ public class CloverTenderConnecter {
     }
 
     public CloverTransactionModel setCloverTransaction(Intent intent) {
-        Log.d(TAG,"Error: " + intent.getStringExtra(Intents.EXTRA_EMPLOYEE_ID));
         return new CloverTransactionModel(
                 intent.getLongExtra(Intents.EXTRA_AMOUNT, 0),
                 intent.getLongExtra(Intents.EXTRA_TAX_AMOUNT, 0),

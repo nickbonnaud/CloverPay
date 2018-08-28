@@ -62,7 +62,7 @@ public interface APIInterface {
 
     @FormUrlEncoded
     @POST("transaction")
-    Observable<Response<JSONObject>> doRequestPostTransaction(@Field("pos_type") String posType, @Field("pos_transaction_id") String orderId, @Field("user_id") int userId, @Field("total") long total, @Field("tax") long tax, @Field("employee_id") String employeeId, @Field("transaction_id") int transactionId);
+    Observable<Response<JSONObject>> doRequestPostTransaction(@Field("pos_type") String posType, @Field("pos_transaction_id") String orderId, @Field("user_id") int userId, @Field("total") long total, @Field("tax") long tax, @Field("employee_id") String employeeId, @Field("transaction_id") Integer transactionId);
 
     @FormUrlEncoded
     @POST("employees")

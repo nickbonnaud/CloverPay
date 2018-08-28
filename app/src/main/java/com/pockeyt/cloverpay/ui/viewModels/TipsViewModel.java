@@ -175,7 +175,6 @@ public class TipsViewModel extends ViewModel {
         setPaginationData(tipsList);
 
         List<TipsModel> transactionsListHolder = tipsList.getMeta().getCurrentPage() > 1 ? this.transactions.getValue() : new ArrayList<TipsModel>();
-
         for (TipsList.Datum tip : tipsList.getData()) {
 
             String name = getEmployeeName(tip.getEmployeeId());
@@ -191,7 +190,11 @@ public class TipsViewModel extends ViewModel {
             transactionsListHolder.add(tipsModel);
         }
         if ((startDate.getValue() != null && endDate.getValue() != null) && (startDate.getValue().getDate() != null && endDate.getValue().getDate() != null)) {
-            setSelectedTransactionsForTips(transactionsListHolder);
+            List<TipsModel> selectedTransaction = new ArrayList<>();
+            for (TipsModel transactionTip : transactionsListHolder) {
+                selectedTransaction.add(transactionTip);
+            }
+            setSelectedTransactionsForTips(selectedTransaction);
         }
         setEmployeeTransactions(transactionsListHolder);
     }
@@ -213,12 +216,20 @@ public class TipsViewModel extends ViewModel {
         this.transactions.setValue(transactionsListHolder);
     }
 
-    public void setSelectedTransactionsForTips(List<TipsModel> transactionsForTips) {
+    private void setSelectedTransactionsForTips(List<TipsModel> transactionsForTips) {
         if (this.selectedTransactionsForTips == null) {
             this.selectedTransactionsForTips = new MutableLiveData<List<TipsModel>>();
         }
+
         this.selectedTransactionsForTips.setValue(transactionsForTips);
         setTipTotal(sumTipsOfTransactions(transactionsForTips));
+    }
+
+    public LiveData<List<TipsModel>> getSelectedTransactionsForTips() {
+        if (this.selectedTransactionsForTips == null) {
+            this.selectedTransactionsForTips = new MutableLiveData<List<TipsModel>>();
+        }
+        return this.selectedTransactionsForTips;
     }
 
     public void setTipTotal(Integer tipTotal) {
@@ -237,6 +248,8 @@ public class TipsViewModel extends ViewModel {
 
 
     public boolean addRemoveTransaction(Integer indexOfTransaction) {
+        Log.d(TAG, indexOfTransaction + "");
+        Log.d(TAG, this.transactions.getValue().size() + "");
         TipsModel transaction = this.transactions.getValue().get(indexOfTransaction);
         if (this.selectedTransactionsForTips != null && this.selectedTransactionsForTips.getValue() != null) {
             int index = this.selectedTransactionsForTips.getValue().indexOf(transaction);
@@ -245,6 +258,7 @@ public class TipsViewModel extends ViewModel {
                  return true;
              } else {
                  subtractFromSelectedTransactionForTips(index);
+                 Log.d(TAG, "subtract from selected transactions");
                  return false;
              }
         } else {
@@ -263,8 +277,11 @@ public class TipsViewModel extends ViewModel {
     }
 
     private void subtractFromSelectedTransactionForTips(int index) {
+        Log.d(TAG, "inside subtract from selected transations");
+        Log.d(TAG, this.transactions.getValue().size() + " ONE");
         List<TipsModel> selectedTransactions  = this.selectedTransactionsForTips.getValue();
         selectedTransactions.remove(index);
+        Log.d(TAG, this.transactions.getValue().size() + " TWO");
         setSelectedTransactionsForTips(selectedTransactions);
     }
 

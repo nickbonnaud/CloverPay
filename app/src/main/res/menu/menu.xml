@@ -19,14 +19,14 @@
         android:icon="@null"
         android:title="@string/tips_start_date"
         android:visible="false"
-        app:showAsAction="ifRoom" />
+        app:showAsAction="always" />
 
     <item
         android:id="@+id/action_date_picker_end"
         android:icon="@null"
         android:title="@string/tips_end_date"
         android:visible="false"
-        app:showAsAction="ifRoom" />
+        app:showAsAction="always" />
 
     <item
         android:id="@+id/action_tips_search"

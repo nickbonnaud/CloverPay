@@ -1,6 +1,7 @@
 package com.pockeyt.cloverpay.utils;
 
 import android.content.Context;
+import android.content.res.Configuration;
 import android.util.DisplayMetrics;
 import android.util.TypedValue;
 
@@ -16,13 +17,7 @@ public class DisplayHelpers {
         return metrics.widthPixels / metrics.density;
     }
 
-    public static int screenWidth() {
-        DisplayMetrics metrics = new DisplayMetrics();
-        return metrics.widthPixels;
-    }
-
-    public static int screenHeight() {
-        DisplayMetrics metrics = new DisplayMetrics();
-        return metrics.heightPixels;
+    public static boolean isLandscape(Context context) {
+        return context.getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
     }
 }
