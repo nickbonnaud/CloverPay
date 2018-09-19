@@ -140,7 +140,7 @@ public class NotificationHandler  {
                 message = customer.getFirstName() + " has accepted your request to redeem their loyalty reward!";
                 break;
             case "redeem_later_deal":
-                title = "Redeem Deal Later.";
+                title = "Redeem Deal Later";
                 message = customer.getFirstName() + " wishes to redeem their deal at a later time.";
                 icon = R.drawable.ic_stat_deal;
                 isDealOrRewardError = true;
